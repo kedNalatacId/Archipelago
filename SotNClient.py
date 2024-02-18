@@ -137,9 +137,9 @@ class SotnContext(CommonContext):
             self.messages[(time.time(), msg_id)] = msg
 
     def on_package(self, cmd: str, args: dict):
-        import pprint
-        print(f"WIP -- received package (cmd: {cmd}):")
-        pprint.pprint(args)
+#       import pprint
+#       print(f"WIP -- received package (cmd: {cmd}):")
+#       pprint.pprint(args)
         if cmd == 'Connected':
             self.locations_array = None
             self.bosses_dead = None
@@ -267,7 +267,6 @@ async def parse_locations(data: dict, ctx: SotnContext):
             ctx.checked_locations_sent = True
 
 
-# TODO: Find why AttributeError: 'list' object has no attribute 'items'
 async def parse_bosses(data: dict, ctx: SotnContext):
     bosses = data
 
@@ -276,14 +275,6 @@ async def parse_bosses(data: dict, ctx: SotnContext):
     if bosses is not None:
         if type(bosses) is list:
             bosses = {}
-        # WIP
-        else:
-            import pprint
-            print("WIP -- bosses:")
-            pprint.pprint(bosses)
-            print("---\nWIP -- ctx bosses dead:")
-            pprint.pprint(ctx.bosses_dead)
-        # END WIP
         for key, value in bosses.items():
             if value == False:
                 continue
@@ -291,13 +282,11 @@ async def parse_bosses(data: dict, ctx: SotnContext):
                 if type(ctx.bosses_dead) is list:
                     ctx.bosses_dead = {}
                 if value != ctx.bosses_dead[key]:
-                    print(f"WIP -- new boss dead! ({key})")
                     ctx.total_bosses_killed += 1
                     msg = f'Killed: {key} - Total: {ctx.total_bosses_killed}'
                     logger.info(msg)
             else:
                 if value:
-                    print(f"WIP -- counting old boss as dead... ({key})")
                     ctx.total_bosses_killed += 1
                     msg = f'Killed: {key} - Total: {ctx.total_bosses_killed}'
                     logger.info(msg)
