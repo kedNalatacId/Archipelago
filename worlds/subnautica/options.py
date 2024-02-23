@@ -17,42 +17,73 @@ from .creatures import all_creatures, Definitions
 from .items import ItemType, item_names_by_type
 
 
-class SwimRule(Choice):
+#class SwimRule(Choice):
+#    """What logic considers ok swimming distances.
+#    Easy: +200 depth from any max vehicle depth.
+#    Normal: +400 depth from any max vehicle depth.
+#    Warning: Normal can expect you to death run to a location (No viable return trip).
+#    Hard: +600 depth from any max vehicle depth.
+#    Warning: Hard may require bases, deaths, glitches, multi-tank inventory or other depth extending means.
+#    """
+#    display_name = "Swim Rule"
+#    option_easy = 0
+#    option_normal = 1
+#    option_hard = 2
+#
+#    @property
+#    def base_depth(self) -> int:
+#        return [200, 400, 600][self.value]
+class SwimRule(Range):
     """What logic considers ok swimming distances.
-    Easy: +200 depth from any max vehicle depth.
-    Normal: +400 depth from any max vehicle depth.
-    Warning: Normal can expect you to death run to a location (No viable return trip).
-    Hard: +600 depth from any max vehicle depth.
-    Warning: Hard may require bases, deaths, glitches, multi-tank inventory or other depth extending means.
-    Items: Expected depth is extended by items like seaglide, ultra glide fins and capacity tanks.
+    Easy: 100-200 depth from any max vehicle depth.
+    Normal: 200-400 depth from any max vehicle depth.
+    Hard: 400+ depth from any max vehicle depth.
+
+    Warning: Depths above 200m may have a very small sphere one (this may make generation difficult).
+             Depths below 200m may expect you to death run to a location (No viable return trip).
+             Depths below 400m may require bases, deaths, glitches, multi-tank inventory or other depth extending means.
     """
     display_name = "Swim Rule"
-    option_easy = 0
-    option_normal = 1
-    option_hard = 2
-    option_items_easy = 3
-    option_items_normal = 4
-    option_items_hard = 5
+    range_start = 100
+    default = 200
+    range_end = 600
 
-    @property
-    def base_depth(self) -> int:
-        return [200, 400, 600][self.value % 3]
+class ConsiderItems(Toggle):
+    """Whether expected depth is extended by items like seaglide, ultra glide fins and capacity tanks."""
+    display_name = "Consider Items"
 
-    @property
-    def consider_items(self) -> bool:
-        return self.value > 2
+class ConsiderExteriorGrowbed(Toggle):
+    """Whether expected depth is also extended by exterior growbeds; adds 500 depth by itself.
+    This only matters if items are considered (both have to be true to take effect)."""
+    display_name = "Consider Exterior Growbed"
 
+class PreSeaglideDistance(Range):
+    """Maximum distance away from origin for locations to be in logic without seaglide. Default is 800m"""
+    display_name = "Pre-Seaglide Distance"
+    range_start  = 600
+    default      = 800
+    range_end    = 2500
 
 class EarlySeaglide(DefaultOnToggle):
     """Make sure 2 of the Seaglide Fragments are available in or near the Safe Shallows (Sphere 1 Locations)."""
     display_name = "Early Seaglide"
 
+class SeaglideDepth(Range):
+    """ How much additional depth the seaglide allows vs no-seaglide"""
+    display_name = "Seaglide Depth"
+    range_start  = 100
+    default      = 200
+    range_end    = 400
 
 class FreeSamples(Toggle):
     """Get free items with your blueprints.
     Items that can go into your inventory are awarded when you unlock their blueprint through Archipelago."""
     display_name = "Free Samples"
 
+class IgnoreRadiation(Toggle):
+    """Whether to allow soaking radiation damage to access checks.
+    Don't enable this unless you think you can fix the Aurora without the radiation suit."""
+    display_name = "Ignore Radiation"
 
 class Goal(Choice):
     """Goal to complete.
