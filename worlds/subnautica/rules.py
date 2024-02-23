@@ -20,10 +20,6 @@ def has_exterior_growbed(state: "CollectionState", player: int) -> bool:
     return state.has("FarmingTray", player, 1)
 
 
-def has_reactor_capable_room(state: "CollectionState", player: int) -> bool:
-    return state.has("BaseLargeRoom", 1) or state.has("BaseRoom", 1)
-
-
 def has_modification_station(state: "CollectionState", player: int) -> bool:
     return state.has("Modification Station Fragment", player, 3)
 
@@ -73,11 +69,11 @@ def has_cyclops_hull(state: "CollectionState", player: int) -> bool:
 
 
 def has_nuclear_reactor(state: "CollectionState", player: int) -> bool:
-    return state.has("Nuclear Reactor Fragment", player, 3) and has_reactor_capable_room(state, player)
+    return state.has("Nuclear Reactor Fragment", player, 3) and has_utility_room(state, player)
 
 
 def has_bioreactor(state: "CollectionState", player: int) -> bool:
-    return state.has("Bioreactor Fragment", player, 2) and has_reactor_capable_room(state, player)
+    return state.has("Bioreactor Fragment", player, 2) and has_utility_room(state, player)
 
 
 def has_thermal_plant(state: "CollectionState", player: int) -> bool:
@@ -392,7 +388,6 @@ def get_aggression_rule(option: AggressiveScanLogic, creature_name: str) -> \
         return has_stasis_rifle
     # otherwise allow option preference
     return aggression_rules.get(option.value, None)
-
 
 aggression_rules: Dict[int, Callable[["CollectionState", int], bool]] = {
     AggressiveScanLogic.option_stasis: has_stasis_rifle,
