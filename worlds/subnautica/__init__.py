@@ -159,11 +159,17 @@ class SubnauticaWorld(World):
 
         slot_data: Dict[str, Any] = {
             "goal": self.options.goal.current_key,
-            "swim_rule": self.options.swim_rule.current_key,
+            "swim_rule": self.options.swim_rule.value,
+            "consider_items": self.options.consider_items.value,
+            "consider_exterior_growbed": self.options.consider_exterior_growbed.value,
+            "early_seaglide": self.options.early_seaglide.value,
+            "seaglide_depth": self.options.seaglide_depth.value,
+            "pre_seaglide_distance": self.options.pre_seaglide_distance.value,
             "vanilla_tech": vanilla_tech,
             "creatures_to_scan": self.creatures_to_scan,
             "death_link": self.options.death_link.value,
             "free_samples": self.options.free_samples.value,
+            "ignore_radiation": self.options.ignore_radiation.value,
         }
 
         return slot_data
