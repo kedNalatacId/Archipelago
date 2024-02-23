@@ -48,12 +48,13 @@ if __name__ == "__main__":
         # PropulsionCannon in Subnautica ID
         "757": [location_id for location_id, location_data
                 in location_table.items() if location_data.get("need_propulsion_cannon", False)],
+# These two now checked dynamically
         # Radiation Suit in Subnautica ID
-        "519": [location_id for location_id, location_data
-                in location_table.items() if radiated(location_data["position"])],
+#       "519": [location_id for location_id, location_data
+#               in location_table.items() if radiated(location_data["position"])],
         # SeaGlide in Subnautica ID
-        "751": [location_id for location_id, location_data
-                in location_table.items() if far_away(location_data["position"])],
+#       "751": [location_id for location_id, location_data
+#               in location_table.items() if far_away(location_data["position"])],
     }
     with open(in_export_folder("logic.json"), "w") as f:
         json.dump(payload, f)

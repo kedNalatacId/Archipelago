@@ -70,7 +70,7 @@ item_table: Dict[int, ItemData] = {
     35043: ItemData(IC.progression, 2, "Propulsion Cannon Fragment", "PropulsionCannonFragment"),
     35044: ItemData(IC.progression_skip_balancing, 1, "Neptune Launch Platform", "RocketBase"),
     35045: ItemData(IC.progression, 1, "Ion Power Cell", "PrecursorIonPowerCell"),
-    35046: ItemData(IC.filler, 2, "Exterior Growbed", "FarmingTray"),
+    35046: ItemData(IC.useful, 2, "Exterior Growbed", "FarmingTray"),
     35047: ItemData(IC.filler, 1, "Picture Frame", "PictureFrameFragment"),
     35048: ItemData(IC.filler, 1, "Bench", "Bench"),
     35049: ItemData(IC.filler, 1, "Basic Plant Pot", "PlanterPotFragment"),
