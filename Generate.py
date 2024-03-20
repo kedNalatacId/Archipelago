@@ -57,9 +57,9 @@ def mystery_argparse():
                         help="Skips generation assertion and output stages and skips multidata and spoiler output. "
                              "Intended for debugging and testing purposes.")
     args = parser.parse_args()
-    if not os.path.isabs(args.weights_file_path):
+    if os.sep not in args.weights_file_path:
         args.weights_file_path = os.path.join(args.player_files_path, args.weights_file_path)
-    if not os.path.isabs(args.meta_file_path):
+    if os.sep not in args.meta_file_path:
         args.meta_file_path = os.path.join(args.player_files_path, args.meta_file_path)
     args.plando: PlandoOptions = PlandoOptions.from_option_string(args.plando)
     return args, options
