@@ -540,11 +540,15 @@ def roll_alttp_settings(ret: argparse.Namespace, weights, plando_options):
 
 if __name__ == '__main__':
     import atexit
-    confirmation = atexit.register(input, "Press enter to close.")
+    import sys
+
+    confirmation = None
+    if not sys.stdin.isatty():
+        confirmation = atexit.register(input, "Press enter to close.")
+
     multiworld = main()
     if __debug__:
         import gc
-        import sys
         import weakref
         weak = weakref.ref(multiworld)
         del multiworld
@@ -552,4 +556,5 @@ if __name__ == '__main__':
         assert not weak(), f"MultiWorld object was not de-allocated, it's referenced {sys.getrefcount(weak())} times." \
                            " This would be a memory leak."
     # in case of error-free exit should not need confirmation
-    atexit.unregister(confirmation)
+    if not sys.stdin.isatty():
+        atexit.unregister(confirmation)
