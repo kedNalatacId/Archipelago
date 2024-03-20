@@ -1,24 +1,19 @@
 import asyncio
-import hashlib
 import json
 import time
 import os
-import bsdiff4
-import subprocess
-import zipfile
 from asyncio import StreamReader, StreamWriter, CancelledError
-from typing import NamedTuple, List
-
+from typing import NamedTuple
 
 import Utils
-from NetUtils import ClientStatus, NetworkItem
-from Utils import async_start
 from CommonClient import CommonContext, server_loop, gui_enabled, ClientCommandProcessor, logger, \
     get_base_parser
+from NetUtils import ClientStatus
+from Utils import async_start, user_path
 from worlds import network_data_package, AutoWorldRegister
 from worlds.sotn.Items import base_item_id, ItemData, get_item_data, IType
 from worlds.sotn.Locations import location_table, LocationData, base_location_id, zones_dict, ZoneData, get_location_data
-
+from worlds.sotn.Rom import pos_patch
 
 SYSTEM_MESSAGE_ID = 0
 
@@ -34,18 +29,7 @@ CONNECTION_INITIAL_STATUS = "Connection has not been initiated"
 
 SCRIPT_VERSION = 1
 
-"""
-Payload: lua -> client
-{
-    locations: dict,
-}
 
-Payload: client -> lua
-{
-    items: list,
-}
-"""
-# TODO: lua script has_item will not work with more than one of the same item
 sotn_loc_name_to_id = network_data_package["games"]["Symphony of the Night"]["location_name_to_id"]
 
 
@@ -101,9 +85,20 @@ class SotnCommandProcessor(ClientCommandProcessor):
 
         for key, value in zones_dict.items():
             zd: ZoneData = value
-            if zd.abrev == "WRP" or zd.abrev == "RWRP" or zd.abrev == "ST0" or "BO" in zd.abrev:
+            if zd.abrev == "WRP" or zd.abrev == "RWRP" or zd.abrev == "ST0" or zd.abrev == "DRE" or "BO" in zd.abrev:
                 continue
             self.output(f'{zd.abrev} - {zd.name}')
+
+    def _cmd_patch(self, patch_dir: str):
+        """Patch the ROM with the provided .apsotn(ONLY NAME)"""
+        if not os.path.exists(patch_dir + ".apsotn"):
+            logger.info(".apsotn not found!")
+            return
+        if os.path.exists(patch_dir + ".bin"):
+            logger.info("Patched ROM found!")
+            return
+        logger.info("Start patching. Please wait!")
+        diff_handler(patch_dir)
 
 
 class SotnContext(CommonContext):
@@ -117,8 +112,6 @@ class SotnContext(CommonContext):
         self.psx_sync_task = None
         self.messages = {}
         self.locations_array = None
-        self.bosses_dead = None
-        self.total_bosses_killed = 0
         self.psx_status = CONNECTION_INITIAL_STATUS
         self.awaiting_rom = False
         self.display_msgs = True
@@ -142,8 +135,6 @@ class SotnContext(CommonContext):
 #       pprint.pprint(args)
         if cmd == 'Connected':
             self.locations_array = None
-            self.bosses_dead = None
-            self.total_bosses_killed = 0
         elif cmd == 'Print':
             msg = args['text']
             if ': !' not in msg:
@@ -152,7 +143,7 @@ class SotnContext(CommonContext):
             msg = f"{', '.join([self.item_names[item.item] for item in args['items']])}"
             self._set_message(msg, SYSTEM_MESSAGE_ID)
         elif cmd == "PrintJSON":
-            if 'item' in args and args['type'] == "ItemSend":
+            if 'item' in args and args['type'] == "ItemSend" and args['receiving'] == args['item']['player']:
                 received: NamedTuple = args['item']
                 loc_data: LocationData = get_location_data(received.location)
                 item_data: ItemData = get_item_data(received.item)
@@ -163,7 +154,9 @@ class SotnContext(CommonContext):
 
                 if base_item_id <= received.item <= base_item_id + 423:
                     if loc_data is not None:
-                        if loc_data.can_be_relic:
+                        if 127110031 <= received.location <= 127110050:
+                            self.items_received.append(received.item - base_item_id)
+                        elif loc_data.can_be_relic:
                             # There is a item on a relic spot, send it to the player
                             if item_data.type != IType.RELIC:
                                 self.items_received.append(received)
@@ -224,7 +217,7 @@ def get_payload(ctx: SotnContext):
 #           print("Received an int! Appending to items list.")
             items.append(item)
         else:
-#           print(f"Unknown item type received ({type(item)}):")
+            print(f"Unknown item type received ({type(item)}):")
             pprint.pprint(item)
 
     ret = json.dumps(
@@ -270,29 +263,11 @@ async def parse_locations(data: dict, ctx: SotnContext):
 async def parse_bosses(data: dict, ctx: SotnContext):
     bosses = data
 
-    if bosses == ctx.bosses_dead:
+    if not bosses:
         return
-    if bosses is not None:
-        if type(bosses) is list:
-            bosses = {}
-        for key, value in bosses.items():
-            if value == False:
-                continue
-            if ctx.bosses_dead is not None:
-                if type(ctx.bosses_dead) is list:
-                    ctx.bosses_dead = {}
-                if value != ctx.bosses_dead[key]:
-                    ctx.total_bosses_killed += 1
-                    msg = f'Killed: {key} - Total: {ctx.total_bosses_killed}'
-                    logger.info(msg)
-            else:
-                if value:
-                    ctx.total_bosses_killed += 1
-                    msg = f'Killed: {key} - Total: {ctx.total_bosses_killed}'
-                    logger.info(msg)
-    ctx.bosses_dead = bosses
+
     if "Dracula" in bosses:
-        if bosses["Dracula"]:
+        if bosses["Dracula"] and not ctx.finished_game:
             await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
             ctx.finished_game = True
 
@@ -391,42 +366,72 @@ async def psx_sync_task(ctx: SotnContext):
             pass
     print("exiting PSX sync task")
 
-# Todo: Test changes in here to launch from the ArchipelagoLaucher, imports should also be update for apworld
+
+def diff_handler(diff_file: str):
+    logger.info("Handling patch")
+    if diff_file:
+        try:
+            logger.info("Patching game")
+            source1 = os.path.splitext(diff_file)[0]
+            try:
+                name_start = source1.index("AP_")
+            except ValueError:
+                logger.info("File not an AP format ")
+                return
+            source1 = source1[name_start:] + ".bin"
+            source2 = "Castlevania - Symphony of the Night (USA) (Track 2).bin"
+            destination = os.path.splitext(diff_file)[0] + ".cue"
+
+            logger.info(pos_patch(os.path.splitext(diff_file)[0]))
+
+            cue_file = f'FILE "{source1}" BINARY\n  TRACK 01 MODE2/2352\n\tINDEX 01 00:00:00\n'
+            cue_file += f'FILE "{source2}" BINARY\n  TRACK 02 AUDIO\n'
+            cue_file += f'\tINDEX 00 00:00:00\n\tINDEX 01 00:02:00'
+            with open(destination, 'wb') as outfile:
+                outfile.write(bytes(cue_file, 'utf-8'))
+        except Exception as e:
+            Utils.messagebox('Error', str(e), True)
+            raise
+        logger.info("All done!")
+
+async def main():
+    parser = get_base_parser()
+    parser.add_argument('diff_file', default="", type=str, nargs="?",
+                        help='Path to a Archipelago Binary Patch file')
+    parser.add_argument('port', default=17242, type=int, nargs="?",
+                        help='port for sotn_connector connection')
+    args = parser.parse_args()
+
+    if args.diff_file:
+        try:
+            diff_handler(args.diff_file)
+        except Exception as e:
+            Utils.messagebox('Error', str(e), True)
+            raise
+
+    ctx = SotnContext(args.connect, args.password)
+    ctx.server_task = asyncio.create_task(server_loop(ctx), name="ServerLoop")
+    if gui_enabled:
+        ctx.run_gui()
+    ctx.run_cli()
+    ctx.psx_sync_task = asyncio.create_task(psx_sync_task(ctx), name="SotN Sync")
+
+    if args.port is int:
+        ctx.lua_connector_port = args.port
+
+    await ctx.exit_event.wait()
+    ctx.server_address = None
+
+    await ctx.shutdown()
+
+    if ctx.psx_sync_task:
+        await ctx.psx_sync_task
+        print("finished PSX_sync_task (main)")
+
+
 if __name__ == '__main__':
-
     Utils.init_logging("SotNClient")
-
-    async def main():
-        parser = get_base_parser()
-        parser.add_argument('patch_file', default="", type=str, nargs="?",
-                            help='Path to an SOTN rom file')
-        parser.add_argument('port', default=17242, type=int, nargs="?",
-                            help='port for sotn_connector connection')
-        args = parser.parse_args()
-
-        ctx = SotnContext(args.connect, args.password)
-        ctx.server_task = asyncio.create_task(server_loop(ctx), name="ServerLoop")
-        if gui_enabled:
-            ctx.run_gui()
-        ctx.run_cli()
-        ctx.psx_sync_task = asyncio.create_task(psx_sync_task(ctx), name="SotN Sync")
-
-        if args.port is int:
-            ctx.lua_connector_port = args.port
-
-        await ctx.exit_event.wait()
-        ctx.server_address = None
-
-        await ctx.shutdown()
-
-        if ctx.psx_sync_task:
-            await ctx.psx_sync_task
-            print("finished PSX_sync_task (main)")
-
-
     import colorama
-
     colorama.init()
-
     asyncio.run(main())
     colorama.deinit()

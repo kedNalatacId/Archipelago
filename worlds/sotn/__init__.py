@@ -1,53 +1,54 @@
-
 from typing import ClassVar, Dict, Tuple, List
 
-import settings, typing, random, os
+import settings, typing, random
 from worlds.AutoWorld import WebWorld, World
 from BaseClasses import Tutorial, MultiWorld, ItemClassification, Item
-from worlds.LauncherComponents import Component, components, SuffixIdentifier
+from worlds.LauncherComponents import Component, components, SuffixIdentifier, launch_subprocess, Type
 from Options import AssembleOptions
 
 
 from .Items import item_table, relic_table, SotnItem, ItemData, base_item_id, event_table, IType, vanilla_list
-from .Locations import location_table, SotnLocation
+from .Locations import location_table, SotnLocation, exp_locations_token
 from .Regions import create_regions
 from .Rules import set_rules
 from .Options import sotn_option_definitions
-from .Rom import (get_base_rom_path, get_base_rom_bytes, write_char, write_short, write_word, write_to_file,
-                  SOTNDeltaPatch, write_seed, patch_rom)
+from .Rom import SOTNDeltaPatch, patch_rom
 
 
-# Todo: Test changes in here to launch from the ArchipelagoLaucher
-components.append(Component('SOTN Client', 'SotnClient', file_identifier=SuffixIdentifier('.apsotn')))
+def run_client():
+    print('Running SOTN Client')
+    from SotnClient import main
+    # from .SotnClient import main for release
+    launch_subprocess(main, name="SotnClient")
+
+
+components.append(Component('SOTN Client', 'SotnClient', func=run_client,
+                            component_type=Type.CLIENT, file_identifier=SuffixIdentifier('.apsotn')))
 
 
 # -- Problem found on last play --
 # Getting Error num_id is nil in lua after receiving a misplaced, just once
 # Maybe Succubus be a boss?
 # Better distribution of vanilla items based on type
-# Find a better id to relics placehold
 # Faerie scroll place holder missing
 # TODO: Improve skill of wolf and bat card check
+# Alucart Mail not sorting when received
 
 class SotnSettings(settings.Group):
-    class DisplayMsgs(settings.Bool):
-        """Set this to true to display item received messages in EmuHawk"""
-
-    class Track1RomFile(settings.UserFilePath):
+    class RomFile(settings.UserFilePath):
         """File name of the SOTN US rom Track 1"""
         description = "Symphony of the Night (SLU067) ROM File (Track 1)"
         copy_to = "Castlevania - Symphony of the Night (USA) (Track 1).bin"
         md5s = [SOTNDeltaPatch.hash]
 
-    class Track2RomFile(settings.UserFilePath):
+    rom_file: RomFile = RomFile(RomFile.copy_to)
+
+    class AudioFile(settings.UserFilePath):
         """File name of the SOTN US rom Track 2"""
-        description = "Symphony of the Night (SLU067) ROM File (Track 2)"
+        description = "Symphony of the Night (SLU067) Audio File (Track 2)"
         copy_to = "Castlevania - Symphony of the Night (USA) (Track 2).bin"
 
-    track_1_rom_file: Track1RomFile = Track1RomFile(Track1RomFile.copy_to)
-    track_2_rom_file: Track2RomFile = Track2RomFile(Track2RomFile.copy_to)
-
-    display_msgs: typing.Union[DisplayMsgs, bool] = True
+    audio_file: AudioFile = AudioFile(AudioFile.copy_to)
 
 
 class SotnWeb(WebWorld):
@@ -95,13 +96,66 @@ class SotnWorld(World):
         return SotnItem(name, data.ic, data.index, self.player)
 
     def create_items(self) -> None:
-        itempool: typing.List[SotnItem] = []
-        difficulty = self.multiworld.difficulty[self.player]
         added_items = 0
+
+        self.multiworld.get_location("NZ0 - Slogra and Gaibon kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("NO1 - Doppleganger 10 kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("LIB - Lesser Demon kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("NZ1 - Karasuman kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("DAI - Hippogryph kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("ARE - Minotaurus/Werewolf kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("NO2 - Olrox kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("NO4 - Scylla kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("NO4 - Succubus kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("CHI - Cerberos kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("CAT - Legion kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("RARE - Fake Trevor/Grant/Sypha kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("RCAT - Galamoth kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("RCHI - Death kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("RDAI - Medusa kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("RNO1 - Creature kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("RNO2 - Akmodan II kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("RNO4 - Doppleganger40 kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("RNZ0 - Beezelbub kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+        self.multiworld.get_location("RNZ1 - Darkwing bat kill", self.player).place_locked_item(
+            self.create_item("Boss token"))
+
+        for k, v in exp_locations_token.items():
+            self.multiworld.get_location(k, self.player).place_locked_item(
+                self.create_item("Exploration token"))
+
+        for i in range(exp + 1, 20 + 1):
+            exp_location = f"Exploration {i * 10} item"
+            self.multiworld.get_location(exp_location, self.player).place_locked_item(self.create_random_junk())
+            added_items += 1
+
+        itempool: typing.List[SotnItem] = []
+        # TODO: Learn about item weights for difficult
+        difficulty = self.multiworld.difficulty[self.player]
         # Last generate 278 Items 386 Locations with all relics
         # Removed bump librarian
         # 28 Relic location filled with pre_fill (Not anymore)
-        total_location = 385
+        # total_location = 385 added 20 exploration locations
+        total_location = 405
 
         # Add progression items
         itempool += [self.create_item("Spike breaker")]
@@ -120,15 +174,19 @@ class SotnWorld(World):
             itempool += [self.create_item("Alucard sword")]
             itempool += [self.create_item("Mablung Sword")]
             itempool += [self.create_item("Crissaegrim")]
+            itempool += [self.create_item("Crissaegrim")]
             itempool += [self.create_item("Alucard mail")]
             itempool += [self.create_item("God's Garb")]
             itempool += [self.create_item("Dragon helm")]
             itempool += [self.create_item("Twilight cloak")]
             itempool += [self.create_item("Ring of varda")]
+            itempool += [self.create_item("Ring of varda")]
             itempool += [self.create_item("Duplicator")]
+            added_items += 12
+
             itempool += [self.create_item("Life Vessel") for _ in range(40)]
             itempool += [self.create_item("Heart Vessel") for _ in range(40)]
-            added_items += 90
+            added_items += 80
             for r in relic_table:
                 itempool += [self.create_item(r)]
                 added_items += 1
@@ -144,6 +202,13 @@ class SotnWorld(World):
                 vanilla_list.remove(item)
 
         if difficulty == 1:
+            itempool += [self.create_item("Alucard sword")]
+            itempool += [self.create_item("Crissaegrim")]
+            itempool += [self.create_item("Alucard mail")]
+            itempool += [self.create_item("God's Garb")]
+            itempool += [self.create_item("Ring of varda")]
+            added_items += 5
+
             itempool += [self.create_item("Life Vessel") for _ in range(32)]
             itempool += [self.create_item("Heart Vessel") for _ in range(33)]
             added_items += 65
@@ -200,48 +265,19 @@ class SotnWorld(World):
         create_regions(self.multiworld, self.player)
 
     def generate_basic(self) -> None:
+        required = self.options.bosses_needed
+        exp = self.options.exploration_needed
+
+        if required > 20:
+            required = 20
+        if exp > 20:
+            exp = 20
+
         self.multiworld.get_location("RCEN - Kill Dracula", self.player).place_locked_item(
             self.create_event("Victory"))
-        self.multiworld.completion_condition[self.player] = lambda state: state.has("Victory", self.player)
-
-        self.multiworld.get_location("NZ0 - Slogra and Gaibon kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("NO1 - Doppleganger 10 kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("LIB - Lesser Demon kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("NZ1 - Karasuman kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("DAI - Hippogryph kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("ARE - Minotaurus/Werewolf kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("NO2 - Olrox kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("NO4 - Scylla kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("CHI - Cerberos kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("CAT - Legion kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("RARE - Fake Trevor/Grant/Sypha kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("RCAT - Galamoth kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("RCHI - Death kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("RDAI - Medusa kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("RNO1 - Creature kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("RNO2 - Akmodan II kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("RNO4 - Doppleganger40 kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("RNZ0 - Beezelbub kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
-        self.multiworld.get_location("RNZ1 - Darkwing bat kill", self.player).place_locked_item(
-            self.create_event("Boss token"))
+        self.multiworld.completion_condition[self.player] = lambda state: \
+            (state.has("Victory", self.player) and state.has("Boss token", self.player, required) and
+             state.has("Exploration token", self.player, exp))
 
     def create_event(self, name: str) -> Item:
         return SotnItem(name, ItemClassification.progression, None, self.player)
@@ -251,15 +287,5 @@ class SotnWorld(World):
 
     def generate_output(self, output_directory: str) -> None:
         print("Inside Output")
-        rom_path = patch_rom(self, output_directory)
-
-        """print(f"patching: {rom_path}")
-        patch = SOTNDeltaPatch(rom_path[0:-4] + SOTNDeltaPatch.patch_file_ending, player=player,
-                               player_name=multiworld.player_name[player], patched_path=rom_path)
-
-        patch.write()"""
-
-
-
-
+        patch_rom(self, output_directory)
 

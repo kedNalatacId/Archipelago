@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 from enum import Enum
 from BaseClasses import ItemClassification, Item
 
@@ -186,7 +186,7 @@ hand_type_table = {
     "Alucard sword": ItemData(123, IType.WEAPON1),
     "Mablung Sword": ItemData(124, IType.WEAPON1),
     "Badelaire": ItemData(125, IType.WEAPON1),
-    "Sword familiar": ItemData(126, IType.WEAPON1),
+    "Sword familiar": ItemData(126, IType.WEAPON1, ItemClassification.useful),
     "Great sword": ItemData(127, IType.WEAPON2),
     "Mace": ItemData(128, IType.WEAPON1),
     "Morningstar": ItemData(129, IType.WEAPON1),
@@ -224,7 +224,7 @@ hand_type_table = {
     "Elixir": ItemData(161, IType.USABLE),
     "Manna prism": ItemData(162, IType.USABLE),
     "Vorpal blade": ItemData(163, IType.WEAPON1),
-    "Crissaegrim": ItemData(164, IType.WEAPON1),
+    "Crissaegrim": ItemData(164, IType.WEAPON1, ItemClassification.useful),
     "Yasutsuna": ItemData(165, IType.WEAPON2),
     "Library card": ItemData(166, IType.USABLE),
     "Alucart shield": ItemData(167, IType.SHIELD),
@@ -255,7 +255,7 @@ chest_type_table = {
     "Mojo mail": ItemData(190, IType.ARMOR),
     "Fury plate": ItemData(191, IType.ARMOR),
     "Dracula tunic": ItemData(192, IType.ARMOR),
-    "God's Garb": ItemData(193, IType.ARMOR),
+    "God's Garb": ItemData(193, IType.ARMOR, ItemClassification.useful),
     "Axe Lord armor": ItemData(194, IType.ARMOR),
     "Alucart mail": ItemData(258, IType.ARMOR)
 }
@@ -312,7 +312,7 @@ acc_type_table = {
     "Ring of ares": ItemData(240, IType.ACCESSORY),
     "Gold ring": ItemData(241, IType.ACCESSORY, ItemClassification.progression),
     "Silver ring": ItemData(242, IType.ACCESSORY, ItemClassification.progression),
-    "Ring of varda": ItemData(243, IType.ACCESSORY),
+    "Ring of varda": ItemData(243, IType.ACCESSORY, ItemClassification.useful),
     "Ring of arcana": ItemData(244, IType.ACCESSORY),
     "Mystic pendant": ItemData(245, IType.ACCESSORY),
     "Heart broach": ItemData(246, IType.ACCESSORY),
@@ -368,6 +368,7 @@ relic_table = {
 event_table = {
     "Victory": ItemData(350, IType.EVENT, ItemClassification.progression),
     "Boss token": ItemData(351, IType.EVENT, ItemClassification.progression),
+    "Exploration token": ItemData(352, IType.EVENT, ItemClassification.progression)
 }
 
 item_table = {
@@ -378,6 +379,7 @@ item_table = {
     **acc_type_table,
     **vessel_table,
     **relic_table,
+    **event_table,
 }
 
 
@@ -386,6 +388,13 @@ def get_item_data(item_id: int) -> ItemData:
         data: ItemData = v
         if data.index == item_id:
             return data
+
+
+def get_item_data_shop(item_id: int) -> Tuple:
+    for k, v in item_table.items():
+        data: ItemData = v
+        if data.index == item_id + base_item_id:
+            return k, data
 
 
 vanilla_list = ["Monster vial 3", "Monster vial 3", "Monster vial 3", "Monster vial 3", "Shield rod", "Leather shield",

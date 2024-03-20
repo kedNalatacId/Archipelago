@@ -1,3 +1,4 @@
+import sys
 import multiprocessing
 import concurrent.futures
 from functools import partial
@@ -180,7 +181,7 @@ def process_sector_multi(fd, sector = 0):
     return fd
 
 
-def eccEdcCalc():
+def eccEdcCalc(fname):
     start = 16 * 2352
 
     print("Starting pool")
@@ -189,7 +190,7 @@ def eccEdcCalc():
     #chunks = [fd[x:x + 2352] for x in range(start, start + (10 * 2352), 2352)]
 
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        with open("C:/python teste/hello/Castlevania - Symphony of the Night (USA) (Track 1).bin", "rb") as inFile:
+        with open(fname, "rb") as inFile:
             fd = list(inFile.read())
             data = fd[0:start]
             chunks = [fd[x:x + 2352] for x in range(start, len(fd), 2352)]
@@ -206,3 +207,14 @@ def eccEdcCalc():
     print(len(data))
 
     return data
+
+
+if __name__ == '__main__':
+    fn = ""
+    if len(sys.argv) > 0:
+        fn = sys.argv[1]
+    else:
+        print("No file specified for input")
+        sys.exit(0)
+
+    eccEdcCalc(fn)

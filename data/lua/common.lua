@@ -107,3 +107,47 @@ end
 function stripPrefix(s, p)
   return (s:sub(0, #p) == p) and s:sub(#p+1) or s
 end
+
+local detected_sizing_method = nil
+function get_table_size(tbl)
+    if detected_sizing_method == nil then
+        if pcall(function() table.getn(tbl) end) then
+            detected_sizing_method = "getn"
+        else
+            detected_sizing_method = "hash"
+        end
+    end
+
+    if detected_sizing_method == "getn" then
+        return table.getn(tbl)
+    elseif detected_sizing_method == "hash" then
+        return #tbl
+    else
+        console.log("invalid sizing method")
+        error("invalid sizing method")
+    end
+end
+
+function dump(o)
+   if type(o) == 'table' then
+      local s = '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s .. '['..k..'] = ' .. dump(v) .. ','
+      end
+      return s .. '} '
+   else
+      return tostring(o)
+   end
+end
+
+function round(x, n)
+    if n == nil then
+        n = 0
+    end
+
+    n = math.pow(10, n or 0)
+    x = x * n
+    if x >= 0 then x = math.floor(x + 0.5) else x = math.ceil(x - 0.5) end
+    return x / n
+end
