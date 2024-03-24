@@ -1,6 +1,5 @@
 import Utils
 import random
-import psx_error_recalc
 from sys import platform
 from worlds.Files import APDeltaPatch
 from Utils import home_path
@@ -8,6 +7,7 @@ from settings import get_settings
 from worlds.AutoWorld import World
 from .Items import ItemData, item_table, IType, get_item_data_shop
 from .Locations import location_table
+from .psx_error_recalc import eccEdcCalc
 
 import hashlib
 import os
@@ -18,47 +18,47 @@ ROMHASH   = "acbb3a2e4a8f865f363dc06df147afa2"
 AUDIOHASH = "8f4b1df20c0173f7c2e6a30bd3109ac8"
 
 shop_stock = {
-        "Potion": 0x047a309c,
-        "High potion": 0x047a30a4,
-        "Elixir": 0x047a30ac,
-        "Manna prism": 0x047a30b4,
-        "Antivenom": 0x047a30bc,
-        "Uncurse": 0x047a30c4,
-        "Hammer": 0x047a30cc,
-        "Magic missile": 0x047a30d4,
-        "Bwaka knife": 0x047a30dc,
-        "Boomerang": 0x047a30e4,
-        "Javelin": 0x047a30ec,
-        "Fire boomerang": 0x047a30f4,
-        "Shuriken": 0x047a30fc,
-        "Cross shuriken": 0x047a3104,
-        "Buffalo star": 0x047a310c,
-        "Flame star": 0x047a3114,
-        "Library card": 0x047a311c,
-        "Meal ticket": 0x047a3124,
-        "Saber": 0x047a312c,
-        "Mace": 0x047a3134,
-        "Damascus sword": 0x047a313c,
-        "Firebrand": 0x047a3144,
-        "Icebrand": 0x047a314c,
-        "Thunderbrand": 0x047a3154,
-        "Harper": 0x047a315c,
-        "Leather shield": 0x047a3164,
-        "Iron shield": 0x047a316c,
-        "Velvet hat": 0x047a3174,
-        "Leather hat": 0x047a317c,
-        "Circlet": 0x047a3184,
-        "Silver crown": 0x047a318c,
-        "Iron cuirass": 0x047a3194,
-        "Steel cuirass": 0x047a319c,
-        "Diamond plate": 0x047a31a4,
-        "Reverse cloak": 0x047a31ac,
-        "Elven cloak": 0x047a31b4,
-        "Joseph's cloak": 0x047a31bc,
-        "Medal": 0x047a31c4,
-        "Ring of pales": 0x047a31cc,
-        "Gauntlet": 0x047a31d4,
-        "Duplicator": 0x047a31dc
+    "Potion": 0x047a309c,
+    "High potion": 0x047a30a4,
+    "Elixir": 0x047a30ac,
+    "Manna prism": 0x047a30b4,
+    "Antivenom": 0x047a30bc,
+    "Uncurse": 0x047a30c4,
+    "Hammer": 0x047a30cc,
+    "Magic missile": 0x047a30d4,
+    "Bwaka knife": 0x047a30dc,
+    "Boomerang": 0x047a30e4,
+    "Javelin": 0x047a30ec,
+    "Fire boomerang": 0x047a30f4,
+    "Shuriken": 0x047a30fc,
+    "Cross shuriken": 0x047a3104,
+    "Buffalo star": 0x047a310c,
+    "Flame star": 0x047a3114,
+    "Library card": 0x047a311c,
+    "Meal ticket": 0x047a3124,
+    "Saber": 0x047a312c,
+    "Mace": 0x047a3134,
+    "Damascus sword": 0x047a313c,
+    "Firebrand": 0x047a3144,
+    "Icebrand": 0x047a314c,
+    "Thunderbrand": 0x047a3154,
+    "Harper": 0x047a315c,
+    "Leather shield": 0x047a3164,
+    "Iron shield": 0x047a316c,
+    "Velvet hat": 0x047a3174,
+    "Leather hat": 0x047a317c,
+    "Circlet": 0x047a3184,
+    "Silver crown": 0x047a318c,
+    "Iron cuirass": 0x047a3194,
+    "Steel cuirass": 0x047a319c,
+    "Diamond plate": 0x047a31a4,
+    "Reverse cloak": 0x047a31ac,
+    "Elven cloak": 0x047a31b4,
+    "Joseph's cloak": 0x047a31bc,
+    "Medal": 0x047a31c4,
+    "Ring of pales": 0x047a31cc,
+    "Gauntlet": 0x047a31d4,
+    "Duplicator": 0x047a31dc
 }
 
 
@@ -372,8 +372,9 @@ def pos_patch(seed_name):
         with open(audio_name, "wb") as stream:
             stream.write(audio_rom)
 
+    # WIP - this doesn't work, needs fixing
     print("ERROR RECALC started. Please wait")
-    psx_error_recalc.eccEdcCalc(file_name)
+    eccEdcCalc(file_name)
 
     return error_msg
 

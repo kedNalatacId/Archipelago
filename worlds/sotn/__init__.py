@@ -96,6 +96,7 @@ class SotnWorld(World):
         return SotnItem(name, data.ic, data.index, self.player)
 
     def create_items(self) -> None:
+        exp = self.options.exploration_needed
         added_items = 0
 
         self.multiworld.get_location("NZ0 - Slogra and Gaibon kill", self.player).place_locked_item(

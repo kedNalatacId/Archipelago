@@ -143,7 +143,7 @@ class SotnContext(CommonContext):
             msg = f"{', '.join([self.item_names[item.item] for item in args['items']])}"
             self._set_message(msg, SYSTEM_MESSAGE_ID)
         elif cmd == "PrintJSON":
-            if 'item' in args and args['type'] == "ItemSend" and args['receiving'] == args['item']['player']:
+            if 'item' in args and args['type'] == "ItemSend" and args['receiving'] == args['item'].player:
                 received: NamedTuple = args['item']
                 loc_data: LocationData = get_location_data(received.location)
                 item_data: ItemData = get_item_data(received.item)

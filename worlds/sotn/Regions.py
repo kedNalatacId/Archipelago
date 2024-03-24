@@ -251,7 +251,7 @@ def create_regions(multiworld: MultiWorld, player: int) -> None:
     rnz1.connect(rare)
     rnz1.connect(rnz0)
     # Reverse Clock Tower
-    rnz1.connect(rtop)
+#   rnz1.connect(rtop)
     rnz1.connect(rno1)
     # Death Wing's Lair
     rno2.connect(rdai)

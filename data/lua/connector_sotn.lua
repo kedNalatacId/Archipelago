@@ -138,6 +138,7 @@ local SCRIPT_VERSION = 1
 
 local ItemsReceived = {}
 local MsgReceived = {}
+local need_to_organize = false
 local have_read_last_received = false
 local skipped = false
 local last_item_processed = 1
@@ -154,6 +155,7 @@ local prevstate = ""
 local curstate =  STATE_UNINITIALIZED
 local sotnSocket = nil
 local frame = 0
+local saved_in_room = false
 
 function getCurrZone()
     local z = mainmemory.read_u16_le(0x180000)
@@ -258,16 +260,39 @@ function grant_item_byid(num_id)
             mainmemory.write_u32_le(0x097bac, max_heart)
         end
     else
+        local quipped = item_equipped(itemid)
         local itemqty = mainmemory.read_u8(address)
-        if itemqty < 255 then
+        if itemqty + quipped < 255 then
             itemqty = itemqty + 1
         end
-        if itemqty == 1 then
+        -- WIP - if we organize when have something equipped it does weird things
+        if itemqty == 1 and quipped == 0 then
             organize_inventory(itemid)
+            -- TODO
+            -- need_to_organize = true
         end
 
         mainmemory.write_u8(address, itemqty)
     end
+end
+
+-- RightHandSlot = 0x097C00;
+-- LeftHandSlot = 0x097C04;
+-- HelmSlot = 0x097C08;
+-- ArmorSlot = 0x097C0C;
+-- CloakSlot = 0x097C10;
+-- AccessorySlot1 = 0x097C14;
+-- AccessorySlot2 = 0x097C18;
+function item_equipped(itemid)
+    local addend = 0
+
+    for ma=0x097C00, 0x097C18, 0x000004 do
+        if mainmemory.read_u8(ma) == itemid then
+            addend = addend + 1
+        end
+    end
+
+    return addend
 end
 
 function organize_inventory(item_id)
@@ -329,9 +354,9 @@ end
 function on_loadstate()
     all_location_table = checkAllLocations(0)
     first_connect = false
-    just_died = false
-    dracula_timer = 0
-    console.log("Loaded state. TODO")
+--  just_died = false
+--  dracula_timer = 0
+    console.log("Loaded state.")
 end
 
 function check_death()
@@ -343,6 +368,25 @@ function check_death()
     if not just_died and hp <= 0 then
         just_died = true
     end
+end
+
+function checkSavedRecently(room)
+    -- Check to see if we're in a save room. this bitmap entry is true if we are.
+    if mainmemory.read_u16_le(0x03C708) & 0x20 == 0x20 then
+        -- Read the memory location of entity slot 24 (zero-offset).
+        -- Empirically, that slot is _always_ the save orb/coffin entity.
+        -- Specifically, pull the AnimationSet (per SOTNAPI).
+        -- If the animationset is 0xcf4c, then we're in the post-save coffin animation.
+        -- If we're in a save room and there's a coffin, we just saved.
+        if mainmemory.read_u16_le(0x03d8fc) == 0xcf4c then
+            local room = mainmemory.read_u16_le(0x1375bc)
+            if room ~= 0x321c then -- and we're not in nightmare.
+                return true
+            end
+        end
+    end
+
+    return false
 end
 
 function processBlock(block)
@@ -368,7 +412,7 @@ function processBlock(block)
     if msgBlock ~= nil and next(msgBlock) ~= nil then
         for i, v in pairs(msgBlock) do
             table.insert(MsgReceived, v)
-            console.log("Received message: " .. v)
+--          console.log("Received message: " .. v)
         end
     end
 
@@ -390,8 +434,6 @@ function processBlock(block)
             end
         end
         ItemsReceived = itemsBlock
-        -- TODO: write only after saving
-        write_last_received(get_table_size(ItemsReceived))
     end
 
     -- NOT YET USED
@@ -443,7 +485,7 @@ function receive()
     end
 end
 
-function checkARE()
+function checkARE(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03bf06)
     checks["ARE - Heart Vessel"] = bit.check(flag, 0)
@@ -459,7 +501,6 @@ function checkARE()
         checks["ARE - Minotaurus/Werewolf kill"] = false
     end
     if cur_zone == "ARE" then
-        local room = mainmemory.read_u16_le(0x1375bc)
         if room == 0x2e90 then
             local x = math.abs(mainmemory.read_u16_le(0x0973f0) - 222)
             local y = math.abs(mainmemory.read_u16_le(0x0973f4) - 135)
@@ -473,7 +514,7 @@ function checkARE()
     return checks
 end
 
-function checkCAT()
+function checkCAT(room)
     local checks = {}
     --local flag = mainmemory.read_u32_le(0x03befc)
     local flag = mainmemory.read_u24_le(0x03befc)
@@ -506,7 +547,7 @@ function checkCAT()
     return checks
 end
 
-function checkCHI()
+function checkCHI(room)
     local checks = {}
     -- local flag = mainmemory.read_u32_le(0x03bf02)
     local flag = mainmemory.read_u16_le(0x03bf02)
@@ -528,7 +569,6 @@ function checkCHI()
         checks["CHI - Cerberos kill"] = false
     end
     if cur_zone == "CHI" then
-        local room = mainmemory.read_u16_le(0x1375bc)
         if room == 0x19b8 then
             local x = math.abs(mainmemory.read_u16_le(0x0973f0) - 88)
             local y = math.abs(mainmemory.read_u16_le(0x0973f4) - 167)
@@ -542,7 +582,7 @@ function checkCHI()
     return checks
 end
 
-function checkDAI()
+function checkDAI(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03beff)
     checks["DAI - Ankh of life(Stairs)"] = bit.check(flag, 0)
@@ -570,7 +610,7 @@ function checkDAI()
     return checks
 end
 
-function checkLIB()
+function checkLIB(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03befa)
     checks["LIB - Stone mask"] = bit.check(flag, 1)
@@ -588,7 +628,6 @@ function checkLIB()
         checks["LIB - Lesser Demon kill"] = false
     end
     if cur_zone == "LIB" then
-        local room = mainmemory.read_u16_le(0x1375bc)
         if room == 0x2ec4 then
             local x = math.abs(mainmemory.read_u16_le(0x0973f0) - 1051)
             local y = math.abs(mainmemory.read_u16_le(0x0973f4) - 919)
@@ -626,7 +665,7 @@ function checkLIB()
     return checks
 end
 
-function checkNO0()
+function checkNO0(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03beec)
     checks["NO0 - Life Vessel(Left clock)"] = bit.check(flag, 0)
@@ -645,7 +684,6 @@ function checkNO0()
     checks["NO0 - Str. potion"] = bit.check(flag, 13)
     checks["NO0 - Holy glasses"] = bit.check(mainmemory.read_u8(0x03bec4), 0)
     if cur_zone == "NO0" then
-        local room = mainmemory.read_u16_le(0x1375bc)
         if room == 0x27f4 then
             local x = math.abs(mainmemory.read_u16_le(0x0973f0) - 130)
             local y = math.abs(mainmemory.read_u16_le(0x0973f4) - 1080)
@@ -667,7 +705,7 @@ function checkNO0()
     return checks
 end
 
-function checkNO1()
+function checkNO1(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03beee)
     checks["NO1 - Jewel knuckles"] = bit.check(flag, 0)
@@ -684,7 +722,6 @@ function checkNO1()
         checks["NO1 - Doppleganger 10 kill"] = false
     end
     if cur_zone == "NO1" then
-        local room = mainmemory.read_u16_le(0x1375bc)
         if room == 0x34f4 then
             local x = math.abs(mainmemory.read_u16_le(0x0973f0) - 360)
             local y = math.abs(mainmemory.read_u16_le(0x0973f4) - 807)
@@ -698,7 +735,7 @@ function checkNO1()
     return checks
 end
 
-function checkNO2()
+function checkNO2(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03bef0)
     checks["NO2 - Heart Vessel"] = bit.check(flag, 1)
@@ -717,7 +754,6 @@ function checkNO2()
         checks["NO2 - Olrox kill"] = false
     end
     if cur_zone == "NO2" then
-        local room = mainmemory.read_u16_le(0x1375bc)
         if room == 0x330c then
             local x = math.abs(mainmemory.read_u16_le(0x0973f0) - 130)
             local y = math.abs(mainmemory.read_u16_le(0x0973f4) - 135)
@@ -739,7 +775,7 @@ function checkNO2()
     return checks
 end
 
-function checkNO3()
+function checkNO3(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03bef2)
 
@@ -755,7 +791,6 @@ function checkNO3()
     checks["NO3 - Pot Roast"] = bit.check(mainmemory.readbyte(0x03be1f), 0)
     checks["NO3 - Turkey"] = bit.check(mainmemory.readbyte(0x03be24), 0)
     if cur_zone == "NO3" or cur_zone == "NP3" then
-        local room = mainmemory.read_u16_le(0x1375bc)
         if room == 0x3d40 or room == 0x3af8 then
             local x = math.abs(mainmemory.read_u16_le(0x0973f0) - 270)
             local y = math.abs(mainmemory.read_u16_le(0x0973f4) - 103)
@@ -779,7 +814,7 @@ function checkNO3()
     return checks
 end
 
-function checkNO4()
+function checkNO4(room)
     local checks = {}
     local flag = mainmemory.read_u32_le(0x03bef4)
     -- local flag2 = mainmemory.read_u16_le(0x03bef8)
@@ -829,7 +864,6 @@ function checkNO4()
         checks["NO4 - Scylla kill"] = false
     end
     if cur_zone == "NO4" then
-        local room = mainmemory.read_u16_le(0x1375bc)
         if room == 0x315c then
             local x = math.abs(mainmemory.read_u16_le(0x0973f0) - 141)
             local y = math.abs(mainmemory.read_u16_le(0x0973f4) - 167)
@@ -851,7 +885,7 @@ function checkNO4()
     return checks
 end
 
-function checkNZ0()
+function checkNZ0(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03bf0b)
     checks["NZ0 - Hide cuirass"] = bit.check(flag, 0)
@@ -869,7 +903,6 @@ function checkNZ0()
         checks["NZ0 - Slogra and Gaibon kill"] = false
     end
     if cur_zone == "NZ0" then
-        local room = mainmemory.read_u16_le(0x1375bc)
         if room == 0x2770 then
             local x = math.abs(mainmemory.read_u16_le(0x0973f0) - 120)
             local y = math.abs(mainmemory.read_u16_le(0x0973f4) - 167)
@@ -891,7 +924,7 @@ function checkNZ0()
     return checks
 end
 
-function checkNZ1()
+function checkNZ1(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03bf0d)
     checks["NZ1 - Magic missile"] = bit.check(flag, 0)
@@ -915,7 +948,6 @@ function checkNZ1()
         checks["NZ1 - Karasuman kill"] = false
     end
     if cur_zone == "NZ1" then
-        local room = mainmemory.read_u16_le(0x1375bc)
         if room == 0x23a0 then
             local x = math.abs(mainmemory.read_u16_le(0x0973f0) - 198)
             local y = math.abs(mainmemory.read_u16_le(0x0973f4) - 183)
@@ -929,7 +961,7 @@ function checkNZ1()
     return checks
 end
 
-function checkTOP()
+function checkTOP(room)
     local checks = {}
     local flag = mainmemory.read_u32_le(0x03bf08)
     checks["TOP - Turquoise"] = bit.check(flag, 0)
@@ -951,7 +983,6 @@ function checkTOP()
     checks["TOP - Heart Vessel 2(Viewing room)"] = bit.check(flag, 16)
     checks["TOP - Heart Vessel(Before Richter)"] = bit.check(flag, 18)
     if cur_zone == "TOP" then
-        local room = mainmemory.read_u16_le(0x1375bc)
         if room == 0x1b8c then
             local xl = math.abs(mainmemory.read_u16_le(0x0973f0) - 424)
             local yl = math.abs(mainmemory.read_u16_le(0x0973f4) - 1815)
@@ -978,7 +1009,7 @@ function checkTOP()
     return checks
 end
 
-function checkRARE()
+function checkRARE(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03bf3b)
     checks["RARE - Fury plate(Hidden floor)"] = bit.check(flag, 0)
@@ -998,7 +1029,7 @@ function checkRARE()
     return checks
 end
 
-function checkRCAT()
+function checkRCAT(room)
     local checks = {}
     local flag = mainmemory.read_u32_le(0x03bf2b)
     checks["RCAT - Magic missile"] = bit.check(flag, 0)
@@ -1025,7 +1056,6 @@ function checkRCAT()
         checks["RCAT - Galamoth kill"] = false
     end
     if cur_zone == "RCAT" or cur_zone == "RBO8" then
-        local room = mainmemory.read_u16_le(0x1375bc)
         if room == 0x2429 or room == 0x2490 then
             local x = math.abs(mainmemory.read_u16_le(0x0973f0) - 38)
             local y = math.abs(mainmemory.read_u16_le(0x0973f4) - 173)
@@ -1039,14 +1069,14 @@ function checkRCAT()
     return checks
 end
 
-function checkRCEN()
+function checkRCEN(room)
     local checks = {}
     bosses["Dracula"] = dracula_dead
 
     return checks
 end
 
-function checkRCHI()
+function checkRCHI(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03bf33)
     checks["RCHI - Power of Sire(Demon)"] = bit.check(flag, 0)
@@ -1067,7 +1097,7 @@ function checkRCHI()
     return checks
 end
 
-function checkRDAI()
+function checkRDAI(room)
     local checks = {}
     local flag = mainmemory.read_u32_le(0x03bf2f)
     checks["RDAI - Fire boomerang"] = bit.check(flag, 2)
@@ -1097,7 +1127,7 @@ function checkRDAI()
     return checks
 end
 
-function checkRLIB()
+function checkRLIB(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03bf27)
     checks["RLIB - Turquoise"] = bit.check(flag, 0)
@@ -1113,7 +1143,7 @@ function checkRLIB()
     return checks
 end
 
-function checkRNO0(f)
+function checkRNO0(room, f)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03bf13)
     checks["RNO0 - Library card"] = bit.check(flag, 0)
@@ -1156,7 +1186,7 @@ function checkRNO0(f)
     return checks
 end
 
-function checkRNO1()
+function checkRNO1(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03bf17)
     checks["RNO1 - Heart Vessel"] = bit.check(flag, 0)
@@ -1179,7 +1209,7 @@ function checkRNO1()
     return checks
 end
 
-function checkRNO2()
+function checkRNO2(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03bf1b)
     checks["RNO2 - Opal"] = bit.check(flag, 0)
@@ -1205,7 +1235,7 @@ function checkRNO2()
     return checks
 end
 
-function checkRNO3()
+function checkRNO3(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03bf1f)
     checks["RNO3 - Hammer"] = bit.check(flag, 0)
@@ -1223,7 +1253,7 @@ function checkRNO3()
     return checks
 end
 
-function checkRNO4()
+function checkRNO4(room)
     local checks = {}
     local flag = mainmemory.read_u32_le(0x03bf23)
     checks["RNO4 - Alucard shield"] = bit.check(flag, 0)
@@ -1259,7 +1289,6 @@ function checkRNO4()
         checks["RNO4 - Doppleganger40 kill"] = false
     end
     if cur_zone == "RNO4" then
-        local room = mainmemory.read_u16_le(0x1375bc)
         if room == 0x2c6c then
             local x = math.abs(mainmemory.read_u16_le(0x0973f0) - 110)
             local y = math.abs(mainmemory.read_u16_le(0x0973f4) - 167)
@@ -1273,7 +1302,7 @@ function checkRNO4()
     return checks
 end
 
-function checkRNZ0()
+function checkRNZ0(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03bf43)
     checks["RNZ0 - Heart Vessel"] = bit.check(flag, 1)
@@ -1294,7 +1323,7 @@ function checkRNZ0()
     return checks
 end
 
-function checkRNZ1()
+function checkRNZ1(room)
     local checks = {}
     local flag = mainmemory.read_u16_le(0x03bf47)
     checks["RNZ1 - Magic missile"] = bit.check(flag, 0)
@@ -1324,7 +1353,7 @@ function checkRNZ1()
     return checks
 end
 
-function checkRTOP()
+function checkRTOP(room)
     local checks = {}
     local flag = mainmemory.read_u32_le(0x03bf3f)
     checks["RTOP - Sword of dawn"] = bit.check(flag, 0)
@@ -1356,36 +1385,38 @@ function checkAllLocations(f)
         return location_checks
     end
 
+    local room = mainmemory.read_u16_le(0x1375bc)
+
     -- Normal Castle
-    for k,v in pairs(checkARE()) do location_checks[k] = v end
-    for k,v in pairs(checkCAT()) do location_checks[k] = v end
-    for k,v in pairs(checkCHI()) do location_checks[k] = v end
-    for k,v in pairs(checkDAI()) do location_checks[k] = v end
-    for k,v in pairs(checkLIB()) do location_checks[k] = v end
-    for k,v in pairs(checkNO0()) do location_checks[k] = v end
-    for k,v in pairs(checkNO1()) do location_checks[k] = v end
-    for k,v in pairs(checkNO2()) do location_checks[k] = v end
-    for k,v in pairs(checkNO3()) do location_checks[k] = v end
-    for k,v in pairs(checkNO4()) do location_checks[k] = v end
-    for k,v in pairs(checkNZ0()) do location_checks[k] = v end
-    for k,v in pairs(checkNZ1()) do location_checks[k] = v end
-    for k,v in pairs(checkTOP()) do location_checks[k] = v end
+    for k,v in pairs(checkARE(room)) do location_checks[k] = v end
+    for k,v in pairs(checkCAT(room)) do location_checks[k] = v end
+    for k,v in pairs(checkCHI(room)) do location_checks[k] = v end
+    for k,v in pairs(checkDAI(room)) do location_checks[k] = v end
+    for k,v in pairs(checkLIB(room)) do location_checks[k] = v end
+    for k,v in pairs(checkNO0(room)) do location_checks[k] = v end
+    for k,v in pairs(checkNO1(room)) do location_checks[k] = v end
+    for k,v in pairs(checkNO2(room)) do location_checks[k] = v end
+    for k,v in pairs(checkNO3(room)) do location_checks[k] = v end
+    for k,v in pairs(checkNO4(room)) do location_checks[k] = v end
+    for k,v in pairs(checkNZ0(room)) do location_checks[k] = v end
+    for k,v in pairs(checkNZ1(room)) do location_checks[k] = v end
+    for k,v in pairs(checkTOP(room)) do location_checks[k] = v end
 
     -- Reverse Castle
-    for k,v in pairs(checkRARE()) do location_checks[k] = v end
-    for k,v in pairs(checkRCAT()) do location_checks[k] = v end
-    for k,v in pairs(checkRCEN()) do location_checks[k] = v end
-    for k,v in pairs(checkRCHI()) do location_checks[k] = v end
-    for k,v in pairs(checkRDAI()) do location_checks[k] = v end
-    for k,v in pairs(checkRLIB()) do location_checks[k] = v end
-    for k,v in pairs(checkRNO0(f)) do location_checks[k] = v end
-    for k,v in pairs(checkRNO1()) do location_checks[k] = v end
-    for k,v in pairs(checkRNO2()) do location_checks[k] = v end
-    for k,v in pairs(checkRNO3()) do location_checks[k] = v end
-    for k,v in pairs(checkRNO4()) do location_checks[k] = v end
-    for k,v in pairs(checkRNZ0()) do location_checks[k] = v end
-    for k,v in pairs(checkRNZ1()) do location_checks[k] = v end
-    for k,v in pairs(checkRTOP()) do location_checks[k] = v end
+    for k,v in pairs(checkRARE(room)) do location_checks[k] = v end
+    for k,v in pairs(checkRCAT(room)) do location_checks[k] = v end
+    for k,v in pairs(checkRCEN(room)) do location_checks[k] = v end
+    for k,v in pairs(checkRCHI(room)) do location_checks[k] = v end
+    for k,v in pairs(checkRDAI(room)) do location_checks[k] = v end
+    for k,v in pairs(checkRLIB(room)) do location_checks[k] = v end
+    for k,v in pairs(checkRNO0(room, f)) do location_checks[k] = v end
+    for k,v in pairs(checkRNO1(room)) do location_checks[k] = v end
+    for k,v in pairs(checkRNO2(room)) do location_checks[k] = v end
+    for k,v in pairs(checkRNO3(room)) do location_checks[k] = v end
+    for k,v in pairs(checkRNO4(room)) do location_checks[k] = v end
+    for k,v in pairs(checkRNZ0(room)) do location_checks[k] = v end
+    for k,v in pairs(checkRNZ1(room)) do location_checks[k] = v end
+    for k,v in pairs(checkRTOP(room)) do location_checks[k] = v end
 
     return location_checks
 end
@@ -1400,38 +1431,40 @@ function checkOneLocation(f)
         gui.clearGraphics()
     end
 
+    local room = mainmemory.read_u16_le(0x1375bc)
+
     -- Normal Castle
-    if cur_zone == "ARE" or cur_zone == "BO2" then current_table = checkARE() end
-    if cur_zone == "CAT" or cur_zone == "BO1" then current_table = checkCAT() end
-    if cur_zone == "CHI" or cur_zone == "BO7" then current_table = checkCHI() end
-    if cur_zone == "DAI" or cur_zone == "BO5" then current_table = checkDAI() end
-    if cur_zone == "LIB" then current_table = checkLIB() end
-    if cur_zone == "NO0" or cur_zone == "CEN" then current_table = checkNO0() end
-    if cur_zone == "NO1" or cur_zone == "BO4" then current_table = checkNO1() end
-    if cur_zone == "NO2" or cur_zone == "BO0" then current_table = checkNO2() end
-    if cur_zone == "NO3" then current_table = checkNO3() end
-    if cur_zone == "NP3" then current_table = checkNO3() end
-    if cur_zone == "NO4" or cur_zone == "BO3" then current_table = checkNO4() end
-    if cur_zone == "BO3" then current_table = checkNO4() end
-    if cur_zone == "NZ0" then current_table = checkNZ0() end
-    if cur_zone == "NZ1" then current_table = checkNZ1() end
-    if cur_zone == "TOP" then current_table = checkTOP() end
+    if cur_zone == "ARE" or cur_zone == "BO2" then current_table = checkARE(room) end
+    if cur_zone == "CAT" or cur_zone == "BO1" then current_table = checkCAT(room) end
+    if cur_zone == "CHI" or cur_zone == "BO7" then current_table = checkCHI(room) end
+    if cur_zone == "DAI" or cur_zone == "BO5" then current_table = checkDAI(room) end
+    if cur_zone == "LIB" then current_table = checkLIB(room) end
+    if cur_zone == "NO0" or cur_zone == "CEN" then current_table = checkNO0(room) end
+    if cur_zone == "NO1" or cur_zone == "BO4" then current_table = checkNO1(room) end
+    if cur_zone == "NO2" or cur_zone == "BO0" then current_table = checkNO2(room) end
+    if cur_zone == "NO3" then current_table = checkNO3(room) end
+    if cur_zone == "NP3" then current_table = checkNO3(room) end
+    if cur_zone == "NO4" or cur_zone == "BO3" then current_table = checkNO4(room) end
+    if cur_zone == "BO3" then current_table = checkNO4(room) end
+    if cur_zone == "NZ0" then current_table = checkNZ0(room) end
+    if cur_zone == "NZ1" then current_table = checkNZ1(room) end
+    if cur_zone == "TOP" then current_table = checkTOP(room) end
 
     -- Reverse Castle
-    if cur_zone == "RARE" or cur_zone == "RBO0" then current_table = checkRARE() end
-    if cur_zone == "RCAT" or cur_zone == "RBO8" then current_table = checkRCAT() end
-    if cur_zone == "RCEN" or cur_zone == "RBO6" then current_table = checkRCEN() end
-    if cur_zone == "RCHI" or cur_zone == "RBO2" then current_table = checkRCHI() end
-    if cur_zone == "RDAI" or cur_zone == "RBO3" then current_table = checkRDAI() end
-    if cur_zone == "RLIB" then current_table = checkRLIB() end
-    if cur_zone == "RNO0" then current_table = checkRNO0(f) end
-    if cur_zone == "RNO1" or cur_zone == "RBO4" then current_table = checkRNO1() end
-    if cur_zone == "RNO2" or cur_zone == "RBO7" then current_table = checkRNO2() end
-    if cur_zone == "RNO3" then current_table = checkRNO3() end
-    if cur_zone == "RNO4" or cur_zone == "RBO5" then current_table = checkRNO4() end
-    if cur_zone == "RNZ0" or cur_zone == "RBO1" then current_table = checkRNZ0() end
-    if cur_zone == "RNZ1" then current_table = checkRNZ1() end
-    if cur_zone == "RTOP" then current_table = checkRTOP() end
+    if cur_zone == "RARE" or cur_zone == "RBO0" then current_table = checkRARE(room) end
+    if cur_zone == "RCAT" or cur_zone == "RBO8" then current_table = checkRCAT(room) end
+    if cur_zone == "RCEN" or cur_zone == "RBO6" then current_table = checkRCEN(room) end
+    if cur_zone == "RCHI" or cur_zone == "RBO2" then current_table = checkRCHI(room) end
+    if cur_zone == "RDAI" or cur_zone == "RBO3" then current_table = checkRDAI(room) end
+    if cur_zone == "RLIB" then current_table = checkRLIB(room) end
+    if cur_zone == "RNO0" then current_table = checkRNO0(room, f) end
+    if cur_zone == "RNO1" or cur_zone == "RBO4" then current_table = checkRNO1(room) end
+    if cur_zone == "RNO2" or cur_zone == "RBO7" then current_table = checkRNO2(room) end
+    if cur_zone == "RNO3" then current_table = checkRNO3(room) end
+    if cur_zone == "RNO4" or cur_zone == "RBO5" then current_table = checkRNO4(room) end
+    if cur_zone == "RNZ0" or cur_zone == "RBO1" then current_table = checkRNZ0(room) end
+    if cur_zone == "RNZ1" then current_table = checkRNZ1(room) end
+    if cur_zone == "RTOP" then current_table = checkRTOP(room) end
 
     local rooms = mainmemory.read_u16_le(0x3c760)
     -- by rounding to three decimal places this seems to work correctly
@@ -1441,7 +1474,7 @@ function checkOneLocation(f)
             if i >= last_found_percent then
 console.log("adding exploration token to current table: " .. (2 * 1))
                 current_table["Exploration " .. (2 * i)] = true
-                current_table["Epxloration " .. (2 * i) .. " item"] = true
+                current_table["Exploration " .. (2 * i) .. " item"] = true
             end
         end
         last_found_percent = found_percent
@@ -1799,7 +1832,7 @@ function main()
                         last_status = 10
 --                      last_processed_read = read_last_processed()
 --                      if last_processed_read == 0 and last_processed_read < 1024 then
-                            last_item_processed = 1
+--                          last_item_processed = 1
 --                      else
 --                          last_item_processed = last_processed_read
 --                      end
@@ -1824,32 +1857,41 @@ function main()
                 end
 
                 if last_status == 10 then
+                    check_death()
                     if cur_zone == "RBO6" then
---                      console.log("Checking victory")
                         checkVictory(frame)
                     end
 
-                    if just_died == true and load_screen == false then
+                    if just_died == true then
+-- WIP
+console.log("just died is true, checking for reset window")
                         if mainmemory.read_u16_le(0x180000) == 0xeed8 then
-                            load_screen = true
+console.log("just died is true, resetting")
+                            getCurrZone()
+                            if mainmemory.read_u16_le(0x180000) ~= 0xeed8 and cur_zone ~= "UNKNOWN" then
+                                just_died = false
+                                not_patched = true
+                                have_read_last_received = false
+                            end
                         end
-                    end
-                    if load_screen == true then
-                        getCurrZone()
-                        if mainmemory.read_u16_le(0x180000) ~= 0xeed8 and cur_zone ~= "UNKNOWN" then
-                            just_died = false
-                            load_screen = false
-                            not_patched = true
-                        end
-                    end
-
-                    if not just_died and mainmemory.readbyte(0x09794c) == 2 then
+                    elseif mainmemory.readbyte(0x09794c) == 2 then
                         if next(ItemsReceived) ~= nil then
                             process_items(frame)
                         end
+
+                        local savedRecently = checkSavedRecently(room)
+                        if savedRecently then
+                            if saved_in_room == false then
+-- WIP
+console.log("have saved recently, writing out item index")
+                                write_last_received(get_table_size(ItemsReceived))
+                                saved_in_room = true
+                            end
+                        else
+                            saved_in_room = false
+                        end
                     end
 
-                    check_death()
                     checkOneLocation(frame)
                 end
             end
