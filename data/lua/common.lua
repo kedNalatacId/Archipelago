@@ -146,7 +146,7 @@ function round(x, n)
         n = 0
     end
 
-    n = math.pow(10, n or 0)
+    n = 10^n
     x = x * n
     if x >= 0 then x = math.floor(x + 0.5) else x = math.ceil(x - 0.5) end
     return x / n
