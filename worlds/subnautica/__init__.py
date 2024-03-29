@@ -9,6 +9,7 @@ from worlds.AutoWorld import World, WebWorld
 from . import items
 from . import locations
 from . import creatures
+#from . import plants
 from . import options
 from .items import item_table, group_items, items_by_type, ItemType
 from .rules import set_rules
@@ -29,6 +30,7 @@ class SubnaticaWeb(WebWorld):
 
 all_locations = {data["name"]: loc_id for loc_id, data in locations.location_table.items()}
 all_locations.update(creatures.creature_locations)
+#all_locations.update(plants.plant_locations)
 
 
 class SubnauticaWorld(World):
@@ -65,6 +67,10 @@ class SubnauticaWorld(World):
 
         self.creatures_to_scan = self.random.sample(
             creature_pool, self.options.creature_scans.value)
+
+#       plant_option: options.ScannablePlants = self.options.scannable_plants
+#       if plant_option:
+#           plant_pool = WIP
 
     def create_regions(self):
         # Create Regions
@@ -117,7 +123,7 @@ class SubnauticaWorld(World):
                 for i in range(item.count):
                     subnautica_item = self.create_item(item.name)
                     if item.name == "Neptune Launch Platform":
-                        self.get_location("Aurora - Captain Data Terminal").place_locked_item(
+                        self.multiworld.get_location("Aurora - Captain Data Terminal", self.player).place_locked_item(
                             subnautica_item)
                     else:
                         pool.append(subnautica_item)
@@ -161,11 +167,18 @@ class SubnauticaWorld(World):
 
         slot_data: Dict[str, Any] = {
             "goal": self.options.goal.current_key,
-            "swim_rule": self.options.swim_rule.current_key,
+            "swim_rule": self.options.swim_rule.value,
+            "consider_items": self.options.consider_items.value,
+            "consider_exterior_growbed": self.options.consider_exterior_growbed.value,
+            "early_seaglide": self.options.early_seaglide.value,
+            "seaglide_depth": self.options.seaglide_depth.value,
+            "pre_seaglide_distance": self.options.pre_seaglide_distance.value,
             "vanilla_tech": vanilla_tech,
             "creatures_to_scan": self.creatures_to_scan,
             "death_link": self.options.death_link.value,
             "free_samples": self.options.free_samples.value,
+            "ignore_radiation": self.options.ignore_radiation.value,
+            "ignore_prawn_depth": self.options.ignore_prawn_depth,
         }
 
         return slot_data
@@ -176,6 +189,18 @@ class SubnauticaWorld(World):
         return SubnauticaItem(name,
                               item_table[item_id].classification,
                               item_id, player=self.player)
+
+    def create_region(self, name: str, region_locations=None, exits=None):
+        ret = Region(name, self.player, self.multiworld)
+        if region_locations:
+            for location in region_locations:
+                loc_id = self.location_name_to_id.get(location, None)
+                location = SubnauticaLocation(self.player, location, loc_id, ret)
+                ret.locations.append(location)
+        if exits:
+            for region_exit in exits:
+                ret.exits.append(Entrance(self.player, region_exit, ret))
+        return ret
 
     def get_filler_item_name(self) -> str:
         item_names, cum_item_weights = self.options.filler_items_distribution.weights_pair

@@ -15,6 +15,10 @@ def has_seaglide(state: "CollectionState", player: int) -> bool:
     return state.has("Seaglide Fragment", player, 2)
 
 
+def has_exterior_growbed(state: "CollectionState", player: int) -> bool:
+    return state.has("FarmingTray", player, 1)
+
+
 def has_modification_station(state: "CollectionState", player: int) -> bool:
     return state.has("Modification Station Fragment", player, 3)
 
@@ -148,77 +152,93 @@ def has_ultra_glide_fins(state: "CollectionState", player: int) -> bool:
 
 # swim speeds: https://subnautica.fandom.com/wiki/Swimming_Speed
 
-
 def get_max_swim_depth(state: "CollectionState", player: int) -> int:
-    swim_rule: SwimRule = state.multiworld.swim_rule[player]
-    depth: int = swim_rule.base_depth
-    if swim_rule.consider_items:
-        if has_seaglide(state, player):
-            if has_ultra_high_capacity_tank(state, player):
-                depth += 350  # It's about 800m. Give some room
-            else:
-                depth += 200  # It's about 650m. Give some room
-        # seaglide and fins cannot be used together
-        elif has_ultra_glide_fins(state, player):
-            if has_ultra_high_capacity_tank(state, player):
-                depth += 150
-            elif has_lightweight_high_capacity_tank(state, player):
-                depth += 75
-            else:
-                depth += 50
-        elif has_ultra_high_capacity_tank(state, player):
-            depth += 100
-        elif has_lightweight_high_capacity_tank(state, player):
-            depth += 25
-    return depth
+    depth: int = state.multiworld.swim_rule[player].value
+    additional_depth: int = get_additional_item_depth(state, player)
+
+    return depth + additional_depth
+
+def get_additional_item_depth(state: "CollectionState", player: int) -> int:
+    consider_items: bool = bool(state.multiworld.consider_items[player].value)
+
+    if not consider_items:
+        return 0
+
+    # Exterior Growbed exception
+    consider_growbed: bool = bool(state.multiworld.consider_exterior_growbed[player].value)
+    growbed_exception = 0
+    if consider_growbed and has_exterior_growbed(state, player):
+        growbed_exception = 500
+
+    plus_tank = 0
+    negated_swim_penalty = 25
+    if has_ultra_high_capacity_tank(state, player):
+        plus_tank = 100
+        negated_swim_penalty = 50
+    elif has_lightweight_high_capacity_tank(state, player):
+        plus_tank = 25
+        negated_swim_penalty = -25
+
+    if has_seaglide(state, player):
+        seaglide_added_depth: int = state.multiworld.seaglide_depth[player].value
+        return seaglide_added_depth + plus_tank + negated_swim_penalty + growbed_exception
+
+    # Can't use seaglide and fins at the same time
+    if has_ultra_glide_fins(state, player):
+        return 50 + plus_tank + growbed_exception
+
+    return plus_tank + growbed_exception
 
 
 def get_seamoth_max_depth(state: "CollectionState", player: int):
-    if has_seamoth(state, player):
-        if has_seamoth_depth_module_mk3(state, player):
-            return 900
-        elif has_seamoth_depth_module_mk2(state, player):  # Will never be the case, 3 is craftable
-            return 500
-        elif has_seamoth_depth_module_mk1(state, player):
-            return 300
-        else:
-            return 200
-    else:
+    if not has_seamoth(state, player):
         return 0
+
+    if has_seamoth_depth_module_mk3(state, player):
+        return 900
+    if has_seamoth_depth_module_mk2(state, player):  # Will never be the case, 3 is craftable
+        return 500
+    if has_seamoth_depth_module_mk1(state, player):
+        return 300
+
+    return 200
 
 
 def get_cyclops_max_depth(state: "CollectionState", player):
-    if has_cyclops(state, player):
-        if has_cyclops_depth_module_mk3(state, player):
-            return 1700
-        elif has_cyclops_depth_module_mk2(state, player):  # Will never be the case, 3 is craftable
-            return 1300
-        elif has_cyclops_depth_module_mk1(state, player):
-            return 900
-        else:
-            return 500
-    else:
+    if not has_cyclops(state, player):
         return 0
+
+    if has_cyclops_depth_module_mk3(state, player):
+        return 1700
+    if has_cyclops_depth_module_mk2(state, player):  # Will never be the case, 3 is craftable
+        return 1300
+    if has_cyclops_depth_module_mk1(state, player):
+        return 900
+    return 500
 
 
 def get_prawn_max_depth(state: "CollectionState", player):
-    if has_prawn(state, player):
-        if has_prawn_depth_module_mk2(state, player):
-            return 1700
-        elif has_prawn_depth_module_mk1(state, player):
-            return 1300
-        else:
-            return 900
-    else:
+    if not has_prawn(state, player):
         return 0
+
+    if has_prawn_depth_module_mk2(state, player):
+        return 1700
+    if has_prawn_depth_module_mk1(state, player):
+        return 1300
+
+    return 900
 
 
 def get_max_depth(state: "CollectionState", player: int):
-    return get_max_swim_depth(state, player) + max(
+    max_depth: int = get_max_swim_depth(state, player) + max(
         get_seamoth_max_depth(state, player),
-        get_cyclops_max_depth(state, player),
-        get_prawn_max_depth(state, player)
+        get_cyclops_max_depth(state, player)
     )
+
+    if not state.multiworld.ignore_prawn_depth[player]:
+        return max(max_depth, get_prawn_max_depth(state, player))
+
+    return max_depth
 
 
 def is_radiated(x: float, y: float, z: float) -> bool:
@@ -240,14 +260,17 @@ def can_access_location(state: "CollectionState", player: int, loc: LocationDict
     pos_y = pos["y"]
     pos_z = pos["z"]
 
-    need_radiation_suit = is_radiated(pos_x, pos_y, pos_z)
-    if need_radiation_suit and not state.has("Radiation Suit", player):
-        return False
+    if not state.multiworld.ignore_radiation[player]:
+        need_radiation_suit = is_radiated(pos_x, pos_y, pos_z)
+        if need_radiation_suit and not state.has("Radiation Suit", player):
+            return False
 
-    # Seaglide doesn't unlock anything specific, but just allows for faster movement. 
+    # Seaglide doesn't unlock anything specific, but just allows for faster movement.
     # Otherwise the game is painfully slow.
     map_center_dist = math.sqrt(pos_x ** 2 + pos_z ** 2)
-    if (map_center_dist > 800 or pos_y < -200) and not has_seaglide(state, player):
+    if map_center_dist > state.multiworld.pre_seaglide_distance[player] and (
+      not has_seaglide(state, player) and not has_seamoth(state, player) and not has_cyclops(state, player)
+      ):
         return False
 
     depth = -pos_y  # y-up
@@ -266,8 +289,7 @@ def can_scan_creature(state: "CollectionState", player: int, creature: str) -> b
 
 def set_creature_rule(world, player: int, creature_name: str) -> "Location":
     location = world.get_location(creature_name + suffix, player)
-    set_rule(location,
-             lambda state: can_scan_creature(state, player, creature_name))
+    set_rule(location, lambda state: can_scan_creature(state, player, creature_name))
     return location
 
 
@@ -286,6 +308,26 @@ aggression_rules: Dict[int, Callable[["CollectionState", int], bool]] = {
     AggressiveScanLogic.option_either: lambda state, player:
     has_stasis_rifle(state, player) or has_containment(state, player)
 }
+
+
+def can_scan_plant(state: "CollectionState", player: int, plant: str) -> bool:
+    pos = loc["position"]
+    pos_x = pos["x"]
+    pos_y = pos["y"]
+    pos_z = pos["z"]
+
+    map_center_dist = math.sqrt(pos_x ** 2 + pos_z ** 2)
+    if map_center_dist > state.multiworld.pre_seaglide_distance[player] and not has_seaglide(state, player):
+        return False
+
+    depth = -pos_y  # y-up
+    return get_max_depth(state, player) >= depth
+
+
+def set_plant_rule(world, player: int, plant_name: str) -> "Location":
+    location = world.get_location(plant_name + suffix, player)
+    set_rule(location, lambda state: can_scan_plant(state, player, plant_name))
+    return location
 
 
 def set_rules(subnautica_world: "SubnauticaWorld"):
@@ -307,6 +349,10 @@ def set_rules(subnautica_world: "SubnauticaWorld"):
                 if rule:
                     add_rule(location,
                              lambda state, loc_rule=get_aggression_rule(option, creature_name): loc_rule(state, player))
+
+#   if subnautica_world.scannable_plants and subnautica_world.plant_scans:
+#       for plant_name in subnautica_world.plants_to_scan:
+#           location = set_plant_rule(multiworld, player, plant_name)
 
     # Victory locations
     set_rule(multiworld.get_location("Neptune Launch", player),
