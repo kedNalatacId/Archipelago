@@ -17,11 +17,7 @@ def has_seaglide(state: "CollectionState", player: int) -> bool:
 
 
 def has_exterior_growbed(state: "CollectionState", player: int) -> bool:
-    return state.has("FarmingTray", player, 1)
-
-
-def has_reactor_capable_room(state: "CollectionState", player: int) -> bool:
-    return state.has("BaseLargeRoom", 1) or state.has("BaseRoom", 1)
+    return state.has("Exterior Growbed", player, 1)
 
 
 def has_modification_station(state: "CollectionState", player: int) -> bool:
@@ -73,11 +69,11 @@ def has_cyclops_hull(state: "CollectionState", player: int) -> bool:
 
 
 def has_nuclear_reactor(state: "CollectionState", player: int) -> bool:
-    return state.has("Nuclear Reactor Fragment", player, 3) and has_reactor_capable_room(state, player)
+    return state.has("Nuclear Reactor Fragment", player, 3) and has_utility_room(state, player)
 
 
 def has_bioreactor(state: "CollectionState", player: int) -> bool:
-    return state.has("Bioreactor Fragment", player, 2) and has_reactor_capable_room(state, player)
+    return state.has("Bioreactor Fragment", player, 2) and has_utility_room(state, player)
 
 
 def has_thermal_plant(state: "CollectionState", player: int) -> bool:
@@ -182,7 +178,6 @@ def get_max_swim_depth(state: "CollectionState", player: int) -> int:
     additional_depth: int = get_additional_item_depth(state, player)
 
     return depth + additional_depth
-
 
 def get_theoretical_max_swim_depth(state: "CollectionState", player: int) -> int:
     depth: int = state.multiworld.swim_rule[player].value
@@ -301,9 +296,13 @@ def get_max_depth(state: "CollectionState", player: int):
 
     return max_depth + max(
         get_seamoth_max_depth(state, player),
-        get_cyclops_max_depth(state, player),
-        get_prawn_max_depth(state, player)
+        get_cyclops_max_depth(state, player)
     )
+
+    if not state.multiworld.ignore_prawn_depth[player]:
+        return max(max_depth, get_prawn_max_depth(state, player))
+
+    return max_depth
 
 
 def is_radiated(x: float, y: float, z: float) -> bool:
