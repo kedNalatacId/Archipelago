@@ -63,8 +63,8 @@ class SMZ3Web(WebWorld):
 
 class SMZ3World(World):
     """
-     A python port of Super Metroid & A Link To The Past Crossover Item Randomizer based on v11.2 of Total's SMZ3. 
-     This is allowed as long as we keep features and logic as close as possible as the original.    
+     A python port of Super Metroid & A Link To The Past Crossover Item Randomizer based on v11.2 of Total's SMZ3.
+     This is allowed as long as we keep features and logic as close as possible as the original.
     """
     game: str = "SMZ3"
     topology_present = False
@@ -205,21 +205,21 @@ class SMZ3World(World):
         SMZ3World.location_names = frozenset(self.smz3World.locationLookup.keys())
 
         self.multiworld.state.smz3state[self.player] = TotalSMZ3Item.Progression([])
-    
+
     def create_items(self):
         self.dungeon = TotalSMZ3Item.Item.CreateDungeonPool(self.smz3World)
         self.dungeon.reverse()
         self.progression = TotalSMZ3Item.Item.CreateProgressionPool(self.smz3World)
         self.keyCardsItems = TotalSMZ3Item.Item.CreateKeycards(self.smz3World)
-        self.SmMapsItems = TotalSMZ3Item.Item.CreateSmMaps(self.smz3World)
+        self.mapItems = TotalSMZ3Item.Item.CreateSmMaps(self.smz3World) + TotalSMZ3Item.Item.CreateALTTPMaps(self.smz3World)
 
         niceItems = TotalSMZ3Item.Item.CreateNicePool(self.smz3World)
         junkItems = TotalSMZ3Item.Item.CreateJunkPool(self.smz3World)
-        allJunkItems = niceItems + junkItems
+        allJunkItems = junkItems + self.mapItems
         self.junkItemsNames = [item.Type.name for item in junkItems]
 
         if (self.smz3World.Config.Keysanity):
-            progressionItems = self.progression + self.dungeon + self.keyCardsItems + self.SmMapsItems
+            progressionItems = self.progression + self.dungeon + self.keyCardsItems
         else:
             progressionItems = self.progression
             # Dungeons items here are not in the itempool and will be prefilled locally so they must stay local
@@ -228,6 +228,7 @@ class SMZ3World(World):
                 self.multiworld.push_precollected(SMZ3Item(item.Type.name, ItemClassification.filler, item.Type, self.item_name_to_id[item.Type.name], self.player, item))
 
         itemPool = [SMZ3Item(item.Type.name, ItemClassification.progression, item.Type, self.item_name_to_id[item.Type.name], self.player, item) for item in progressionItems] + \
+                    [SMZ3Item(item.Type.name, ItemClassification.useful, item.Type, self.item_name_to_id[item.Type.name], self.player, item) for item in niceItems] + \
                     [SMZ3Item(item.Type.name, ItemClassification.filler, item.Type, self.item_name_to_id[item.Type.name], self.player, item) for item in allJunkItems]
         self.smz3DungeonItems = [SMZ3Item(item.Type.name, ItemClassification.progression, item.Type, self.item_name_to_id[item.Type.name], self.player, item) for item in self.dungeon]
         self.multiworld.itempool += itemPool
@@ -394,7 +395,7 @@ class SMZ3World(World):
                     lttp_remote_idx += 1
                     progressionItem = (0 if location.APLocation.item.advancement else 0x8000) + lttp_remote_idx
                     patch[0x386000 + (location.Id * 8) + 6] = bytearray(getWordArray(progressionItem))
-                
+
         return patch
 
     def SnesCustomization(self, addr: int):
@@ -497,7 +498,7 @@ class SMZ3World(World):
             payload = multidata["connect_names"][self.multiworld.player_name[self.player]]
             multidata["connect_names"][new_name] = payload
 
-    def fill_slot_data(self): 
+    def fill_slot_data(self):
         slot_data = {}
         return slot_data
 
@@ -527,7 +528,7 @@ class SMZ3World(World):
 
     def pre_fill(self):
         from Fill import fill_restrictive
-        self.InitialFillInOwnWorld()
+#       self.InitialFillInOwnWorld()
 
         if (not self.smz3World.Config.Keysanity):
             locations = [loc for loc in self.locations.values() if loc.item is None]
@@ -539,7 +540,7 @@ class SMZ3World(World):
 
             all_dungeonItems = self.smz3DungeonItems[:]
             fill_restrictive(self.multiworld, all_state, locations, all_dungeonItems, True, True)
-        self.JunkFillGT(0.5)
+#       self.JunkFillGT(0.5)
 
     def get_pre_fill_items(self):
         if (not self.smz3World.Config.Keysanity):
@@ -606,9 +607,9 @@ class SMZ3World(World):
                 assert itemFromPool is not None, "Can't find anymore item(s) to pre fill GT"
                 self.multiworld.push_item(loc, itemFromPool, False)
         toRemove.sort(reverse = True)
-        for i in toRemove: 
+        for i in toRemove:
             self.multiworld.itempool.pop(i)
-            
+
     def FillItemAtLocation(self, itemPool, itemType, location):
         itemToPlace = TotalSMZ3Item.Item.Get(itemPool, itemType, self.smz3World)
         if (itemToPlace == None):
@@ -631,7 +632,7 @@ class SMZ3World(World):
         location = next(iter(self.multiworld.random.sample(TotalSMZ3Location.AvailableGlobal(TotalSMZ3Location.Empty(self.smz3World.Locations), self.smz3World.Items()), 1)), None)
         if (location == None):
             raise Exception(f"Tried to front fill {item.Name} in, but no location was available")
-        
+
         location.Item = item
         itemFromPool = next((i for i in self.multiworld.itempool if i.player == self.player and i.name == item.Type.name and i.advancement == item.Progression), None)
         if itemFromPool is not None:
