@@ -58,11 +58,13 @@ def mystery_argparse():
                         help="Skips generation assertion and output stages and skips multidata and spoiler output. "
                              "Intended for debugging and testing purposes.")
     args = parser.parse_args()
-    if not os.path.isabs(args.weights_file_path):
+
+    if os.sep not in args.weights_file_path:
         args.weights_file_path = os.path.join(args.player_files_path, args.weights_file_path)
-    if not os.path.isabs(args.meta_file_path):
+    if os.sep not in args.meta_file_path:
         args.meta_file_path = os.path.join(args.player_files_path, args.meta_file_path)
     args.plando: PlandoOptions = PlandoOptions.from_option_string(args.plando)
+
     return args, options
 
 
@@ -112,7 +114,7 @@ def main(args=None, callback=ERmain):
     player_files = {}
     for file in os.scandir(args.player_files_path):
         fname = file.name
-        if file.is_file() and not fname.startswith(".") and \
+        if file.is_file() and not fname.startswith(".") and (fname.endswith(".yml") or fname.endswith(".yaml")) and \
                 os.path.join(args.player_files_path, fname) not in {args.meta_file_path, args.weights_file_path}:
             path = os.path.join(args.player_files_path, fname)
             try:
@@ -121,7 +123,7 @@ def main(args=None, callback=ERmain):
                 raise ValueError(f"File {fname} is invalid. Please fix your yaml.") from e
 
     # sort dict for consistent results across platforms:
-    weights_cache = {key: value for key, value in sorted(weights_cache.items())}
+    weights_cache = {key: value for key, value in sorted(weights_cache.items(), key=str[0].casefold())}
     for filename, yaml_data in weights_cache.items():
         if filename not in {args.meta_file_path, args.weights_file_path}:
             for yaml in yaml_data:
@@ -545,11 +547,14 @@ def roll_alttp_settings(ret: argparse.Namespace, weights, plando_options):
 
 if __name__ == '__main__':
     import atexit
-    confirmation = atexit.register(input, "Press enter to close.")
+    import sys
+
+    confirmation = nil
+    if not sys.stdin.isatty():
+        confirmation = atexit.register(input, "Press enter to close.")
     multiworld = main()
     if __debug__:
         import gc
-        import sys
         import weakref
         weak = weakref.ref(multiworld)
         del multiworld
@@ -557,4 +562,5 @@ if __name__ == '__main__':
         assert not weak(), f"MultiWorld object was not de-allocated, it's referenced {sys.getrefcount(weak())} times." \
                            " This would be a memory leak."
     # in case of error-free exit should not need confirmation
-    atexit.unregister(confirmation)
+    if not sys.stdin.isatty():
+        atexit.unregister(confirmation)
