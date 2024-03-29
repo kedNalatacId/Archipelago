@@ -224,6 +224,8 @@ def patch_rom(world: World, output_directory: str) -> None:
                                 write_short(patched_rom, address, 0x0004)
                             else:
                                 write_short(patched_rom, address, 0x0003)
+                            write_short(patched_rom, address, 0x0004)
+>>>>>>> a7215e7f (personal changes)
 
     offset = 0x0492df64
     offset = write_word(patched_rom, offset, 0xa0202ee8)
