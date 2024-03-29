@@ -540,7 +540,7 @@ if __name__ == '__main__':
     import atexit
     import sys
 
-    confirmation = nil
+    confirmation = None
     if not sys.stdin.isatty():
         confirmation = atexit.register(input, "Press enter to close.")
     multiworld = main()
