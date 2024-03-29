@@ -295,6 +295,11 @@ def get_max_depth(state: "CollectionState", player: int, options: SubnauticaOpti
         get_prawn_max_depth(state, player, options)
     )
 
+    if not state.multiworld.ignore_prawn_depth[player]:
+        return max(max_depth, get_prawn_max_depth(state, player))
+
+    return max_depth
+
 
 def is_radiated(x: float, y: float, z: float) -> bool:
     aurora_dist = math.sqrt((x - 1038.0) ** 2 + y ** 2 + (z - -163.1) ** 2)
