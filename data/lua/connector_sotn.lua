@@ -140,6 +140,7 @@ local ItemsReceived = {}
 local MsgReceived = {}
 local need_to_organize = false
 local have_read_last_received = false
+local have_drawn = false
 local skipped = false
 local last_item_processed = 1
 local last_processed_read = 1024
@@ -1617,22 +1618,29 @@ function checkBosses()
 end
 
 function process_items(f)
+    if have_read_last_received == false then
+        return
+    end
+
     local table_size = get_table_size(ItemsReceived)
     if start_item_drawing == 0 and table_size >= last_item_processed then
-        start_item_drawing = f
-        gui.drawText(0, 0, get_itemname_by_id(ItemsReceived[last_item_processed]), "red")
-        num_item_processed = 1
-        if last_item_processed + 1 <= table_size then
-            gui.drawText(0, 10, get_itemname_by_id(ItemsReceived[last_item_processed + 1]), "blue")
-            num_item_processed = num_item_processed + 1
-        end
-        if last_item_processed + 2 <= table_size then
-            gui.drawText(0, 20, get_itemname_by_id(ItemsReceived[last_item_processed + 2]), "red")
-            num_item_processed = num_item_processed + 1
-        end
-        if last_item_processed + 3 <= table_size then
-            gui.drawText(0, 30, get_itemname_by_id(ItemsReceived[last_item_processed + 3]), "blue")
-            num_item_processed = num_item_processed + 1
+        if have_drawn == false then
+            start_item_drawing = f
+            gui.drawText(0, 0, get_itemname_by_id(ItemsReceived[last_item_processed]), "red")
+            num_item_processed = 1
+            if last_item_processed + 1 <= table_size then
+                gui.drawText(0, 10, get_itemname_by_id(ItemsReceived[last_item_processed + 1]), "blue")
+                num_item_processed = num_item_processed + 1
+            end
+            if last_item_processed + 2 <= table_size then
+                gui.drawText(0, 20, get_itemname_by_id(ItemsReceived[last_item_processed + 2]), "red")
+                num_item_processed = num_item_processed + 1
+            end
+            if last_item_processed + 3 <= table_size then
+                gui.drawText(0, 30, get_itemname_by_id(ItemsReceived[last_item_processed + 3]), "blue")
+                num_item_processed = num_item_processed + 1
+            end
+            have_drawn = true
         end
     end
 
@@ -1641,6 +1649,7 @@ function process_items(f)
         start_item_drawing = 0
         last_item_processed = last_item_processed + num_item_processed
         num_item_processed = 0
+        have_drawn = false
 
 --      write_last_processed(last_item_processed)
     end
