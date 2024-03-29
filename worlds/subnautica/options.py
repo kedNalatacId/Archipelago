@@ -2,7 +2,7 @@ import typing
 
 from Options import Choice, Range, DeathLink, Toggle, DefaultOnToggle, StartInventoryPool
 from .creatures import all_creatures, Definitions
-from .plants import all_flora
+# from .plants import all_flora
 
 
 class SwimRule(Choice):
@@ -171,8 +171,8 @@ option_definitions = {
     "goal": Goal,
     "creature_scans": CreatureScans,
     "creature_scan_logic": AggressiveScanLogic,
-    "scannable_plants": ScannablePlants,
-    "plant_scans": PlantScans,
+#   "scannable_plants": ScannablePlants,
+#   "plant_scans": PlantScans,
     "death_link": SubnauticaDeathLink,
     "start_inventory_from_pool": StartInventoryPool,
 }
