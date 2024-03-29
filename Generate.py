@@ -53,11 +53,13 @@ def mystery_argparse():
                         help="Skips generation assertion and output stages and skips multidata and spoiler output. "
                              "Intended for debugging and testing purposes.")
     args = parser.parse_args()
-    if not os.path.isabs(args.weights_file_path):
+
+    if os.sep not in args.weights_file_path:
         args.weights_file_path = os.path.join(args.player_files_path, args.weights_file_path)
-    if not os.path.isabs(args.meta_file_path):
+    if os.sep not in args.meta_file_path:
         args.meta_file_path = os.path.join(args.player_files_path, args.meta_file_path)
     args.plando: PlandoOptions = PlandoOptions.from_option_string(args.plando)
+
     return args
 
 
@@ -110,7 +112,7 @@ def main(args=None) -> Tuple[argparse.Namespace, int]:
     player_files = {}
     for file in os.scandir(args.player_files_path):
         fname = file.name
-        if file.is_file() and not fname.startswith(".") and \
+        if file.is_file() and not fname.startswith(".") and (fname.endswith(".yml") or fname.endswith(".yaml")) and \
                 os.path.join(args.player_files_path, fname) not in {args.meta_file_path, args.weights_file_path}:
             path = os.path.join(args.player_files_path, fname)
             try:
@@ -545,18 +547,25 @@ def roll_alttp_settings(ret: argparse.Namespace, weights):
 
 if __name__ == '__main__':
     import atexit
-    confirmation = atexit.register(input, "Press enter to close.")
+    import sys
+
+    confirmation = nil
+    if not sys.stdin.isatty():
+        confirmation = atexit.register(input, "Press enter to close.")
+
     erargs, seed = main()
     from Main import main as ERmain
     multiworld = ERmain(erargs, seed)
+
     if __debug__:
         import gc
-        import sys
         import weakref
         weak = weakref.ref(multiworld)
         del multiworld
         gc.collect()  # need to collect to deref all hard references
         assert not weak(), f"MultiWorld object was not de-allocated, it's referenced {sys.getrefcount(weak())} times." \
                            " This would be a memory leak."
+
     # in case of error-free exit should not need confirmation
-    atexit.unregister(confirmation)
+    if confirmation:
+        atexit.unregister(confirmation)
