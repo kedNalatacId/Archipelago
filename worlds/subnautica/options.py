@@ -47,9 +47,11 @@ class PreSeaglideDistance(Range):
     default      = 800
     range_end    = 2500
 
+
 class EarlySeaglide(DefaultOnToggle):
     """Make sure 2 of the Seaglide Fragments are available in or near the Safe Shallows (Sphere 1 Locations)."""
     display_name = "Early Seaglide"
+
 
 class SeaglideDepth(Range):
     """ How much additional depth the seaglide allows vs no-seaglide"""
@@ -104,10 +106,12 @@ class FreeSamples(Toggle):
     Items that can go into your inventory are awarded when you unlock their blueprint through Archipelago."""
     display_name = "Free Samples"
 
+
 class IgnoreRadiation(Toggle):
     """Whether to allow soaking radiation damage to access checks.
     Don't enable this unless you think you can fix the Aurora without the radiation suit."""
     display_name = "Ignore Radiation"
+
 
 class IgnoreRadiation(Toggle):
     """Whether to allow soaking radiation damage to access checks.

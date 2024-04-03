@@ -297,9 +297,13 @@ def get_max_depth(state: "CollectionState", player: int):
 
     return max_depth + max(
         get_seamoth_max_depth(state, player),
-        get_cyclops_max_depth(state, player),
-        get_prawn_max_depth(state, player)
+        get_cyclops_max_depth(state, player)
     )
+
+    if not state.multiworld.ignore_prawn_depth[player]:
+        return max(max_depth, get_prawn_max_depth(state, player))
+
+    return max_depth
 
 
 def is_radiated(x: float, y: float, z: float) -> bool:
@@ -388,6 +392,7 @@ def get_aggression_rule(option: AggressiveScanLogic, creature_name: str) -> \
         return has_stasis_rifle
     # otherwise allow option preference
     return aggression_rules.get(option.value, None)
+
 
 aggression_rules: Dict[int, Callable[["CollectionState", int], bool]] = {
     AggressiveScanLogic.option_stasis: has_stasis_rifle,
