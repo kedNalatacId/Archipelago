@@ -45,6 +45,7 @@ class EarlySeaglide(DefaultOnToggle):
     """Make sure 2 of the Seaglide Fragments are available in or near the Safe Shallows (Sphere 1 Locations)."""
     display_name = "Early Seaglide"
 
+
 class SeaglideDepth(Range):
     """ How much additional depth the seaglide allows vs no-seaglide"""
     display_name = "Seaglide Depth"
