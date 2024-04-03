@@ -310,24 +310,24 @@ aggression_rules: Dict[int, Callable[["CollectionState", int], bool]] = {
 }
 
 
-def can_scan_plant(state: "CollectionState", player: int, plant: str) -> bool:
-    pos = loc["position"]
-    pos_x = pos["x"]
-    pos_y = pos["y"]
-    pos_z = pos["z"]
+#def can_scan_plant(state: "CollectionState", player: int, plant: str) -> bool:
+#    pos = loc["position"]
+#    pos_x = pos["x"]
+#    pos_y = pos["y"]
+#    pos_z = pos["z"]
+#
+#    map_center_dist = math.sqrt(pos_x ** 2 + pos_z ** 2)
+#    if map_center_dist > state.multiworld.pre_seaglide_distance[player] and not has_seaglide(state, player):
+#        return False
+#
+#    depth = -pos_y  # y-up
+#    return get_max_depth(state, player) >= depth
 
-    map_center_dist = math.sqrt(pos_x ** 2 + pos_z ** 2)
-    if map_center_dist > state.multiworld.pre_seaglide_distance[player] and not has_seaglide(state, player):
-        return False
 
-    depth = -pos_y  # y-up
-    return get_max_depth(state, player) >= depth
-
-
-def set_plant_rule(world, player: int, plant_name: str) -> "Location":
-    location = world.get_location(plant_name + suffix, player)
-    set_rule(location, lambda state: can_scan_plant(state, player, plant_name))
-    return location
+#def set_plant_rule(world, player: int, plant_name: str) -> "Location":
+#    location = world.get_location(plant_name + suffix, player)
+#    set_rule(location, lambda state: can_scan_plant(state, player, plant_name))
+#    return location
 
 
 def set_rules(subnautica_world: "SubnauticaWorld"):
