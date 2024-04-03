@@ -230,11 +230,15 @@ def get_prawn_max_depth(state: "CollectionState", player):
 
 
 def get_max_depth(state: "CollectionState", player: int):
-    return get_max_swim_depth(state, player) + max(
+    max_depth: int = get_max_swim_depth(state, player) + max(
         get_seamoth_max_depth(state, player),
-        get_cyclops_max_depth(state, player),
-        get_prawn_max_depth(state, player)
+        get_cyclops_max_depth(state, player)
     )
+
+    if not state.multiworld.ignore_prawn_depth[player]:
+        return max(max_depth, get_prawn_max_depth(state, player))
+
+    return max_depth
 
 
 def is_radiated(x: float, y: float, z: float) -> bool:
@@ -264,7 +268,9 @@ def can_access_location(state: "CollectionState", player: int, loc: LocationDict
     # Seaglide doesn't unlock anything specific, but just allows for faster movement.
     # Otherwise the game is painfully slow.
     map_center_dist = math.sqrt(pos_x ** 2 + pos_z ** 2)
-    if map_center_dist > state.multiworld.pre_seaglide_distance[player] and not has_seaglide(state, player):
+    if map_center_dist > state.multiworld.pre_seaglide_distance[player] and (
+      not has_seaglide(state, player) and not has_seamoth(state, player) and not has_cyclops(state, player)
+      ):
         return False
 
     depth = -pos_y  # y-up
@@ -283,8 +289,7 @@ def can_scan_creature(state: "CollectionState", player: int, creature: str) -> b
 
 def set_creature_rule(world, player: int, creature_name: str) -> "Location":
     location = world.get_location(creature_name + suffix, player)
-    set_rule(location,
-             lambda state: can_scan_creature(state, player, creature_name))
+    set_rule(location, lambda state: can_scan_creature(state, player, creature_name))
     return location
 
 
@@ -296,12 +301,33 @@ def get_aggression_rule(option: AggressiveScanLogic, creature_name: str) -> \
     # otherwise allow option preference
     return aggression_rules.get(option.value, None)
 
+
 aggression_rules: Dict[int, Callable[["CollectionState", int], bool]] = {
     AggressiveScanLogic.option_stasis: has_stasis_rifle,
     AggressiveScanLogic.option_containment: has_containment,
     AggressiveScanLogic.option_either: lambda state, player:
     has_stasis_rifle(state, player) or has_containment(state, player)
 }
+
+
+#def can_scan_plant(state: "CollectionState", player: int, plant: str) -> bool:
+#    pos = loc["position"]
+#    pos_x = pos["x"]
+#    pos_y = pos["y"]
+#    pos_z = pos["z"]
+#
+#    map_center_dist = math.sqrt(pos_x ** 2 + pos_z ** 2)
+#    if map_center_dist > state.multiworld.pre_seaglide_distance[player] and not has_seaglide(state, player):
+#        return False
+#
+#    depth = -pos_y  # y-up
+#    return get_max_depth(state, player) >= depth
+
+
+#def set_plant_rule(world, player: int, plant_name: str) -> "Location":
+#    location = world.get_location(plant_name + suffix, player)
+#    set_rule(location, lambda state: can_scan_plant(state, player, plant_name))
+#    return location
 
 
 def set_rules(subnautica_world: "SubnauticaWorld"):
@@ -323,6 +349,10 @@ def set_rules(subnautica_world: "SubnauticaWorld"):
                 if rule:
                     add_rule(location,
                              lambda state, loc_rule=get_aggression_rule(option, creature_name): loc_rule(state, player))
+
+#   if subnautica_world.scannable_plants and subnautica_world.plant_scans:
+#       for plant_name in subnautica_world.plants_to_scan:
+#           location = set_plant_rule(multiworld, player, plant_name)
 
     # Victory locations
     set_rule(multiworld.get_location("Neptune Launch", player),
