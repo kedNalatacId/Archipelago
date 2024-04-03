@@ -553,5 +553,5 @@ if __name__ == '__main__':
         assert not weak(), f"MultiWorld object was not de-allocated, it's referenced {sys.getrefcount(weak())} times." \
                            " This would be a memory leak."
     # in case of error-free exit should not need confirmation
-    if not sys.stdin.isatty():
+    if confirmation:
         atexit.unregister(confirmation)
