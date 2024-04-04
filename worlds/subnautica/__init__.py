@@ -176,7 +176,7 @@ class SubnauticaWorld(World):
             "death_link": self.options.death_link.value,
             "free_samples": self.options.free_samples.value,
             "ignore_radiation": self.options.ignore_radiation.value,
-            "ignore_prawn_depth": self.options.ignore_prawn_depth,
+            "ignore_prawn_depth": self.options.ignore_prawn_depth.value,
         }
 
         return slot_data
