@@ -158,19 +158,6 @@ def audioGuess(sector):
         return 0
     return 1
 
-"""def process_sector_multi(f, b, e, fd, sector = 0):
-    global eccFLut, eccBLut, edcLut
-    eccFLut = f
-    eccBLut = b
-    edcLut = e
-    buf = [0] * 16
-    read(fd, 0, len(buf), buf)
-    if audioGuess(buf) and not False:
-        print('warning: sector ', sector, ' looks like an audio sector, will recalculate earlier sectors only')
-        return 0
-    eccEdcGenerate(fd, 0)
-    return fd
-"""
 def process_sector_multi(fd, sector = 0):
     buf = [0] * 16
     read(fd, 0, len(buf), buf)
@@ -183,12 +170,6 @@ def process_sector_multi(fd, sector = 0):
 
 def eccEdcCalc(fname):
     start = 16 * 2352
-
-    print("Starting pool")
-
-    #chunks = [fd[x:x + 2352] for x in range(start, len(fd), 2352)]
-    #chunks = [fd[x:x + 2352] for x in range(start, start + (10 * 2352), 2352)]
-
     with concurrent.futures.ProcessPoolExecutor() as executor:
         with open(fname, "rb") as inFile:
             fd = list(inFile.read())
@@ -197,14 +178,6 @@ def eccEdcCalc(fname):
             print("working....")
             for r in executor.map(process_sector_multi, chunks):
                 data.extend(r)
-
-    """for r in map(process_sector_multi, chunks):
-         data.extend(r)"""
-
-    print("inside after pool: ", data[39776:39780])
-    print("Ending pool")
-
-    print(len(data))
 
     return data
 
@@ -217,4 +190,6 @@ if __name__ == '__main__':
         print("No file specified for input")
         sys.exit(0)
 
-    eccEdcCalc(fn)
+    ecc_corrected = eccEdcCalc(fn)
+    with open(fn, "wb") as stream:
+        stream.write(bytes(ecc_corrected))
