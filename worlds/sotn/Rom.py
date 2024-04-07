@@ -5,6 +5,7 @@ from worlds.Files import APDeltaPatch
 from Utils import home_path
 from settings import get_settings
 from worlds.AutoWorld import World
+from BaseClasses import ItemClassification
 from .Items import ItemData, item_table, IType, get_item_data_shop
 from .Locations import location_table
 from .psx_error_recalc import eccEdcCalc
@@ -219,7 +220,10 @@ def patch_rom(world: World, output_directory: str) -> None:
                                 write_short(patched_rom, address - 4, 0x000c)
                                 write_word(patched_rom, address - 2, loc_data.get_delete())
                         else:
-                            write_short(patched_rom, address, 0x0004)
+                            if loc.item.classification == ItemClassification.filler:
+                                write_short(patched_rom, address, 0x0004)
+                            else:
+                                write_short(patched_rom, address, 0x0003)
 
     offset = 0x0492df64
     offset = write_word(patched_rom, offset, 0xa0202ee8)
@@ -372,9 +376,11 @@ def pos_patch(seed_name):
         with open(audio_name, "wb") as stream:
             stream.write(audio_rom)
 
-    # WIP - this doesn't work, needs fixing
-    print("ERROR RECALC started. Please wait")
-    eccEdcCalc(file_name)
+    print("Correcting ECC/EDC. Please wait")
+    ecc_corrected = eccEdcCalc(file_name)
+    with open(file_name, "wb") as stream:
+        stream.write(bytes(ecc_corrected))
+    print("Finished correcting ECC/EDC")
 
     return error_msg
 
