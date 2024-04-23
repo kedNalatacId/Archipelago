@@ -289,6 +289,15 @@ def main(args, seed=None, baked_server_options: Optional[Dict[str, object]] = No
     # we're about to output using multithreading, so we're removing the global random state to prevent accidental use
     multiworld.random.passthrough = False
 
+    if args.spoiler and args.skip_output:
+        if args.spoiler > 1:
+            logger.info('Calculating playthrough.')
+            multiworld.spoiler.create_playthrough(create_paths=args.spoiler > 2)
+
+        temp_dir = output_path("")
+        outfilebase = 'AP_' + multiworld.seed_name
+        multiworld.spoiler.to_file(os.path.join(temp_dir, '%s_Spoiler.txt' % outfilebase))
+
     if args.skip_output:
         logger.info('Done. Skipped output/spoiler generation. Total Time: %s', time.perf_counter() - start)
         return multiworld
@@ -426,11 +435,11 @@ def main(args, seed=None, baked_server_options: Optional[Dict[str, object]] = No
                     logger.info(f'Generating output files ({i}/{len(output_file_futures)}).')
                 future.result()
 
-        if args.spoiler > 1:
-            logger.info('Calculating playthrough.')
-            multiworld.spoiler.create_playthrough(create_paths=args.spoiler > 2)
-
         if args.spoiler:
+            if args.spoiler > 1:
+                logger.info('Calculating playthrough.')
+                multiworld.spoiler.create_playthrough(create_paths=args.spoiler > 2)
+
             multiworld.spoiler.to_file(os.path.join(temp_dir, '%s_Spoiler.txt' % outfilebase))
 
         zipfilename = output_path(f"AP_{multiworld.seed_name}.zip")
