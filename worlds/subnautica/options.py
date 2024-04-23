@@ -47,7 +47,7 @@ class EarlySeaglide(DefaultOnToggle):
 
 
 class SeaglideDepth(Range):
-    """ How much additional depth the seaglide allows vs no-seaglide"""
+    """How much additional depth the seaglide allows vs no-seaglide"""
     display_name = "Seaglide Depth"
     range_start  = 100
     default      = 200
