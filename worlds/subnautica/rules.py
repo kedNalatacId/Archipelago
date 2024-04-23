@@ -20,6 +20,10 @@ def has_exterior_growbed(state: "CollectionState", player: int) -> bool:
     return state.has("Exterior Growbed", player, 1)
 
 
+def has_reactor_capable_room(state: "CollectionState", player: int) -> bool:
+    return state.has("BaseLargeRoom", 1) or state.has("BaseRoom", 1)
+
+
 def has_modification_station(state: "CollectionState", player: int) -> bool:
     return state.has("Modification Station Fragment", player, 3)
 
@@ -179,6 +183,7 @@ def get_max_swim_depth(state: "CollectionState", player: int) -> int:
 
     return depth + additional_depth
 
+
 def get_theoretical_max_swim_depth(state: "CollectionState", player: int) -> int:
     depth: int = state.multiworld.swim_rule[player].value
     consider_items: bool = bool(state.multiworld.consider_items[player].value)
@@ -296,13 +301,9 @@ def get_max_depth(state: "CollectionState", player: int):
 
     return max_depth + max(
         get_seamoth_max_depth(state, player),
-        get_cyclops_max_depth(state, player)
+        get_cyclops_max_depth(state, player),
+        get_prawn_max_depth(state, player)
     )
-
-    if not state.multiworld.ignore_prawn_depth[player]:
-        return max(max_depth, get_prawn_max_depth(state, player))
-
-    return max_depth
 
 
 def is_radiated(x: float, y: float, z: float) -> bool:
