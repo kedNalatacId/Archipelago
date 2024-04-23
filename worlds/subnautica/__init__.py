@@ -9,9 +9,9 @@ from worlds.AutoWorld import World, WebWorld
 from . import items
 from . import locations
 from . import creatures
-#from . import plants
+from . import plants
 from . import options
-from .items import item_table, group_items, items_by_type, ItemType
+from .items import item_table, base_item_table, non_vehicle_depth_table, seamoth_table, prawn_table, cyclops_table, group_items, items_by_type, ItemType
 from .rules import set_rules
 
 logger = logging.getLogger("Subnautica")
@@ -30,7 +30,7 @@ class SubnaticaWeb(WebWorld):
 
 all_locations = {data["name"]: loc_id for loc_id, data in locations.location_table.items()}
 all_locations.update(creatures.creature_locations)
-#all_locations.update(plants.plant_locations)
+all_locations.update(plants.plant_locations)
 
 
 class SubnauticaWorld(World):
@@ -50,6 +50,7 @@ class SubnauticaWorld(World):
     required_client_version = (0, 4, 1)
 
     creatures_to_scan: List[str]
+    plants_to_scan: List[str]
 
     def generate_early(self) -> None:
         if self.options.early_seaglide:
@@ -57,18 +58,23 @@ class SubnauticaWorld(World):
 
         scan_option: options.AggressiveScanLogic = self.options.creature_scan_logic
         creature_pool = scan_option.get_pool()
+        plant_pool = self.options.plant_scans.get_pool()
 
         self.options.creature_scans.value = min(
             len(creature_pool),
             self.options.creature_scans.value
         )
 
+        self.options.plant_scans.value = min(
+            len(plants.all_flora),
+            self.options.plant_scans.value
+        )
+
         self.creatures_to_scan = self.random.sample(
             creature_pool, self.options.creature_scans.value)
 
-#       plant_option: options.ScannablePlants = self.options.scannable_plants
-#       if plant_option:
-#           plant_pool = WIP
+        self.plants_to_scan = self.random.sample(
+            plant_pool, self.options.plant_scans.value)
 
     def create_regions(self):
         # Create Regions
@@ -80,7 +86,8 @@ class SubnauticaWorld(World):
 
         # Create regular locations
         location_names = itertools.chain((location["name"] for location in locations.location_table.values()),
-                                         (creature + creatures.suffix for creature in self.creatures_to_scan))
+                                         (creature + creatures.suffix for creature in self.creatures_to_scan),
+                                         (plant for plant in self.plants_to_scan))
         for location_name in location_names:
             loc_id = self.location_name_to_id[location_name]
             location = SubnauticaLocation(self.player, location_name, loc_id, planet_region)
@@ -89,14 +96,14 @@ class SubnauticaWorld(World):
         # Create events
         goal_event_name = self.options.goal.get_event_name()
 
+        # only create one event (the victory)
         for event in locations.events:
-            location = SubnauticaLocation(self.player, event, None, planet_region)
-            planet_region.locations.append(location)
-            location.place_locked_item(
-                SubnauticaItem(event, ItemClassification.progression, None, player=self.player))
             if event == goal_event_name:
-                # make the goal event the victory "item"
+                location = SubnauticaLocation(self.player, event, None, planet_region)
+                location.place_locked_item(
+                    SubnauticaItem(event, ItemClassification.progression, None, player=self.player))
                 location.item.name = "Victory"
+                planet_region.locations.append(location)
 
         # Register regions to multiworld
         self.multiworld.regions += [
@@ -110,21 +117,60 @@ class SubnauticaWorld(World):
     def create_items(self):
         # Generate item pool
         pool: List[SubnauticaItem] = []
-        extras = self.options.creature_scans.value
+        extras = self.options.creature_scans.value + self.options.plant_scans.value
 
         grouped = set(itertools.chain.from_iterable(group_items.values()))
 
-        for item_id, item in item_table.items():
+        for item_id, item in base_item_table.items():
             if item_id in grouped:
                 extras += item.count
             else:
                 for i in range(item.count):
                     subnautica_item = self.create_item(item.name)
                     if item.name == "Neptune Launch Platform":
-                        self.multiworld.get_location("Aurora - Captain Data Terminal", self.player).place_locked_item(
-                            subnautica_item)
+                        if self.options.goal.get_event_name() == "Neptune Launch":
+                            self.multiworld.get_location("Aurora - Captain Data Terminal", self.player).place_locked_item(
+                                subnautica_item)
+                        else:
+                            pool.append(subnautica_item)
+                    elif item.name == "Cyclops Shield Generator":
+                        if self.options.include_cyclops.value == 2 and self.options.goal.get_event_name() != "Neptune Launch":
+                            extras += 1
+                        else:
+                            pool.append(subnautica_item)
                     else:
                         pool.append(subnautica_item)
+
+        for item_id, item in seamoth_table.items():
+            for i in range(item.count):
+                if self.options.include_seamoth.value < 2:
+                    pool.append(self.create_item(item.name))
+                else:
+                    extras += 1
+
+        for item_id, item in prawn_table.items():
+            for i in range(item.count):
+                if self.options.include_prawn.value < 2:
+                    pool.append(self.create_item(item.name))
+                else:
+                    extras += 1
+
+        for item_id, item in cyclops_table.items():
+            for i in range(item.count):
+                if self.options.include_cyclops.value < 2:
+                    pool.append(self.create_item(item.name))
+                else:
+                    extras += 1
+
+        # If we don't have either of the prawn or cyclops in logical depth, use alternate means
+        # Either a chain of exterior growbeds (finite), or a chain of bases (infinite)
+        # TODO: check if seamoth can make it (these might not be used)
+        for item_id, item in non_vehicle_depth_table.items():
+            for i in range(item.count):
+                if self.options.include_prawn.value > 0 and self.options.include_cyclops.value > 0:
+                    pool.append(self.create_shifted_item(item.name, ItemClassification.progression))
+                else:
+                    pool.append(self.create_item(item.name))
 
         group_amount: int = 2
         assert len(group_items) * group_amount <= extras
@@ -134,20 +180,37 @@ class SubnauticaWorld(World):
                 pool.append(self.create_item(name))
             extras -= group_amount
 
-        for item_name in self.multiworld.random.sample(
-            # list of high-count important fragments as priority filler
-                [
-                    "Cyclops Engine Fragment",
-                    "Cyclops Hull Fragment",
-                    "Cyclops Bridge Fragment",
-                    "Seamoth Fragment",
-                    "Prawn Suit Fragment",
-                    "Mobile Vehicle Bay Fragment",
-                    "Modification Station Fragment",
-                    "Moonpool Fragment",
-                    "Laser Cutter Fragment",
-                 ],
-                k=min(extras, 9)):
+        # list of high-count important fragments as priority filler
+        num = 2
+        priority_filler: List[str] = [
+            "Modification Station Fragment",
+            "Laser Cutter Fragment",
+        ]
+
+        # There are edge cases where we don't need these; don't make extra priority filler if we don't need them
+        # We're wasting a single item here with moonpool fragments for the Cyclops... meh
+        if self.options.include_seamoth.value < 2 or \
+                self.options.include_prawn.value < 2 or \
+                self.options.include_cyclops.value < 2 or \
+                self.options.goal.get_event_name() == "Neptune Launch":
+            num += 2
+            priority_filler.append("Mobile Vehicle Bay Fragment")
+            priority_filler.append("Moonpool Fragment")
+
+        # Vehicle priority filler
+        if self.options.include_seamoth.value < 2:
+            priority_filler.append("Seamoth Fragment")
+            num += 1
+        if self.options.include_prawn.value < 2:
+            priority_filler.append("Prawn Suit Fragment")
+            num += 1
+        if self.options.include_cyclops.value < 2:
+            priority_filler.append("Cyclops Engine Fragment")
+            priority_filler.append("Cyclops Hull Fragment")
+            priority_filler.append("Cyclops Bridge Fragment")
+            num += 3
+
+        for item_name in self.multiworld.random.sample(priority_filler, k=min(extras, num)):
             item = self.create_item(item_name)
             pool.append(item)
             extras -= 1
@@ -167,16 +230,19 @@ class SubnauticaWorld(World):
             "goal": self.options.goal.current_key,
             "swim_rule": self.options.swim_rule.value,
             "consider_items": self.options.consider_items.value,
-            "consider_exterior_growbed": self.options.consider_exterior_growbed.value,
             "early_seaglide": self.options.early_seaglide.value,
             "seaglide_depth": self.options.seaglide_depth.value,
             "pre_seaglide_distance": self.options.pre_seaglide_distance.value,
+            "include_seamoth": self.options.include_seamoth.value,
+            "include_prawn": self.options.include_prawn.value,
+            "include_cyclops": self.options.include_cyclops.value,
             "vanilla_tech": vanilla_tech,
             "creatures_to_scan": self.creatures_to_scan,
+            "plants_to_scan": self.plants_to_scan,
             "death_link": self.options.death_link.value,
             "free_samples": self.options.free_samples.value,
             "ignore_radiation": self.options.ignore_radiation.value,
-            "ignore_prawn_depth": self.options.ignore_prawn_depth.value,
+            "can_slip_through": self.options.can_slip_through.value,
         }
 
         return slot_data
@@ -187,6 +253,10 @@ class SubnauticaWorld(World):
         return SubnauticaItem(name,
                               item_table[item_id].classification,
                               item_id, player=self.player)
+
+    def create_shifted_item(self, name: str, cls) -> SubnauticaItem:
+        item_id: int = self.item_name_to_id[name]
+        return SubnauticaItem(name, cls, item_id, player=self.player)
 
     def create_region(self, name: str, region_locations=None, exits=None):
         ret = Region(name, self.player, self.multiworld)
