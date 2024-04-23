@@ -15,7 +15,7 @@ from Options import (
 
 from .creatures import all_creatures, Definitions
 from .items import ItemType, item_names_by_type
-from .plants import all_flora
+from .plants import all_flora, plant_locations
 
 
 class SwimRule(Range):
@@ -39,12 +39,6 @@ class ConsiderItems(Toggle):
     display_name = "Consider Items"
 
 
-class ConsiderExteriorGrowbed(Toggle):
-    """Whether expected depth is also extended by exterior growbeds; adds 500 depth by itself.
-    This only matters if items are considered (both have to be true to take effect)."""
-    display_name = "Consider Exterior Growbed"
-
-
 class PreSeaglideDistance(Range):
     """Maximum distance away from origin for locations to be in logic without seaglide. Default is 800m"""
     display_name = "Pre-Seaglide Distance"
@@ -59,11 +53,44 @@ class EarlySeaglide(DefaultOnToggle):
 
 
 class SeaglideDepth(Range):
-    """ How much additional depth the seaglide allows vs no-seaglide"""
+    """How much additional depth the seaglide allows vs no-seaglide"""
     display_name = "Seaglide Depth"
     range_start  = 100
     default      = 200
     range_end    = 400
+
+
+class IncludeSeamoth(Choice):
+    """Whether to include the Seamoth or not.
+    Include: Include the Seamoth both logically and really.
+    Exclude from Logic: Include the Seamoth, but don't count it towards depth or distance calculations.
+    Exclude: Do not include any Seamoth fragments. The Seamoth will be unobtainable in game."""
+    display_name = "Seamoth"
+    option_include = 0
+    option_exclude_logically = 1
+    option_exclude = 2
+
+
+class IncludePrawnSuit(Choice):
+    """Whether to include the Prawn Suit or not.
+    Include: Include the Prawn Suit both logically and really.
+    Exclude from Logic: Include the Prawn Suit, but don't count it towards depth or distance calculations.
+    Exclude: Do not include any Prawn Suit fragments. The Prawn Suit will be unobtainable in game."""
+    display_name = "Prawn Suit"
+    option_include = 0
+    option_exclude_logically = 1
+    option_exclude = 2
+
+
+class IncludeCyclops(Choice):
+    """Whether to include the Cyclops or not.
+    Include: Include the Cyclops both logically and really.
+    Exclude from Logic: Include the Cyclops, but don't count it towards depth or distance calculations.
+    Exclude: Do not include any Cyclops fragments. The Cyclops will be unobtainable in game."""
+    display_name = "Cyclops"
+    option_include = 0
+    option_exclude_logically = 1
+    option_exclude = 2
 
 
 class FreeSamples(Toggle):
@@ -78,10 +105,10 @@ class IgnoreRadiation(Toggle):
     display_name = "Ignore Radiation"
 
 
-class IgnorePrawnDepth(Toggle):
-    """Whether to include the prawn suit when considering depth. Makes it less likely to do Prawn suit Lost River runs."""
-    display_name = "Ignore Prawn Depth"
-
+class CanSlipThrough(Toggle):
+    """Whether the player is comfortable bypassing some propulsion cannon segments.
+    At the moment only applies to the jump into the cargo bay in the Aurora."""
+    display_name = "Can Slip Through"
 
 class Goal(Choice):
     """Goal to complete.
@@ -105,15 +132,13 @@ class Goal(Choice):
         }[self.value]
 
 
-#class ScannablePlants(Toggle):
-#    """Whether plants are scannable or not"""
-#    display_name = "Scannable Plants"
+class PlantScans(Range):
+    """Place items on specific, randomly chosen, flora scans."""
+    display_name = "Plant Scans"
+    range_end = len(all_flora)
 
-
-#class PlantScans(Range):
-#    """How many (randomly chosen) plants to be in the pool."""
-#    display_name = "Plant Scans"
-#    range_end = len(all_flora)
+    def get_pool(self) -> typing.List[str]:
+        return sorted(plant_locations)
 
 
 class CreatureScans(Range):
