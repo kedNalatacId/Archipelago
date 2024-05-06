@@ -30,10 +30,10 @@ if __name__ == "__main__":
     payload = {
         # "LaserCutter" in Subnautica ID
         "761": [location_id for location_id, location_data
-                in location_table.items() if location_data["need_laser_cutter"]],
+                in location_table.items() if location_data["need_laser_cutter"] and location_data.get("can_slip_through", 'none') not in ['laser', 'both']],
         # PropulsionCannon in Subnautica ID
         "757": [location_id for location_id, location_data in location_table.items()
-            if location_data.get("need_propulsion_cannon", False) and not location_data.get("can_slip_through", False)],
+            if location_data.get("need_propulsion_cannon", False) and location_data.get("can_slip_through", 'none') not in ['propulsion', 'both']],
     }
     with open(in_export_folder("logic.json"), "w") as f:
         json.dump(payload, f)
