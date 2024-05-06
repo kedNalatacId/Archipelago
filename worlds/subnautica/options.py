@@ -105,7 +105,9 @@ class CanSlipThrough(Choice):
     Laser Cutter: able to slip through Laser Cutter segments (Grassy Plateaus East Wreck)
     Propulsion Cannon: able to slip through Propulsion Cannon segments (Aurora)
     Both: able to slip through both laser and propsulsion cannon segments
-    """
+
+    At the moment only applies to the jump into the cargo bay in the Aurora."""
+
     display_name = "Can Slip Through"
     option_none = 0
     option_laser_cutter = 1
