@@ -326,28 +326,34 @@ def can_access_location(state: "CollectionState", player: int, loc_id: int, loc:
     # Set this above the special locations
     player_can_slip_through = state.multiworld.can_slip_through[player].value
 
-    # These two locations are special (Ring PDA and Lab PDA); they can be reached by either side if the player is willing to "slip through"
+    # These two locations are special (Ring PDA and Lab PDA)
     if loc_id == 33107 or loc_id == 33108:
-        if player_can_slip_through:
+        # these can be reached by either side if the player is willing to "slip through"
+        if player_can_slip_through == 'propulsion_cannon':
             return has_laser_cutter(state, player) or has_propulsion_cannon(state, player)
         else:
             # If they're not willing to slip through then they need the propulsion cannon either way
             # It doesn't really help to check for laser cutter here
             return has_propulsion_cannon(state, player)
 
-    need_laser_cutter = loc.get("need_laser_cutter", False)
-    if need_laser_cutter and not has_laser_cutter(state, player):
-        return False
-
-    # Respect the "can slip through" flag
-    need_to_slip_through = loc.get("can_slip_through")
-    if need_to_slip_through and player_can_slip_through:
-        return True
-
-    # Then check for the propulsion cannon
+    # Respect the "can slip through" flag in both variations
+    can_slip_through       = loc.get("can_slip_through", 'none')
+    need_laser_cutter      = loc.get("need_laser_cutter", False)
     need_propulsion_cannon = loc.get("need_propulsion_cannon", False)
+
+    if need_laser_cutter and not has_laser_cutter(state, player):
+        if can_slip_through == 'laser':
+            if not (player_can_slip_through == 'laser_cutter' or player_can_slip_through == 'both'):
+                return False
+        else:
+            return False
+
     if need_propulsion_cannon and not has_propulsion_cannon(state, player):
-        return False
+        if can_slip_through == 'propulsion':
+            if not (player_can_slip_through == 'propulsion cannon' or player_can_slip_through == 'both'):
+                return False
+        else:
+            return False
 
     # Seaglide doesn't unlock anything specific, but just allows for faster movement.
     # Otherwise the game is painfully slow. Added: vehicles.

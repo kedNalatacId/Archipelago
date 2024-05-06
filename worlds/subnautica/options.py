@@ -1,7 +1,13 @@
 import typing
+from dataclasses import dataclass
+from functools import cached_property
 
-from Options import Choice, Range, DeathLink, Toggle, DefaultOnToggle, StartInventoryPool
+from Options import (
+    Choice, Range, DeathLink, Toggle, DefaultOnToggle,
+    StartInventoryPool, ItemDict, PerGameCommonOptions
+)
 from .creatures import all_creatures, Definitions
+from .items import ItemType, item_names_by_type
 from .plants import all_flora, plant_locations
 
 
@@ -92,10 +98,19 @@ class IgnoreRadiation(Toggle):
     display_name = "Ignore Radiation"
 
 
-class CanSlipThrough(Toggle):
-    """Whether the player is comfortable bypassing some propulsion cannon segments.
+class CanSlipThrough(Choice):
+    """Whether the player is comfortable bypassing some propulsion cannon or laser cutter segments.
+    None: Not able to slip through either Laser Cutter or Propulsion Cannon segments
+    Laser Cutter: able to slip through Laser Cutter segments (Grassy Plateaus East Wreck)
+    Propulsion Cannon: able to slip through Propulsion Cannon segments (Aurora)
+    Both: able to slip through both laser and propsulsion cannon segments
+    """
     At the moment only applies to the jump into the cargo bay in the Aurora."""
     display_name = "Can Slip Through"
+    option_none = 0
+    option_laser_cutter = 1
+    option_propulsion_cannon = 2
+    option_both = 3
 
 class Goal(Choice):
     """Goal to complete.
@@ -168,22 +183,37 @@ class SubnauticaDeathLink(DeathLink):
     Note: can be toggled via in-game console command "deathlink"."""
 
 
-option_definitions = {
-    "swim_rule": SwimRule,
-    "consider_items": ConsiderItems,
-    "include_seamoth": IncludeSeamoth,
-    "include_prawn": IncludePrawnSuit,
-    "include_cyclops": IncludeCyclops,
-    "early_seaglide": EarlySeaglide,
-    "seaglide_depth": SeaglideDepth,
-    "pre_seaglide_distance": PreSeaglideDistance,
-    "free_samples": FreeSamples,
-    "ignore_radiation": IgnoreRadiation,
-    "can_slip_through": CanSlipThrough,
-    "goal": Goal,
-    "creature_scans": CreatureScans,
-    "creature_scan_logic": AggressiveScanLogic,
-    "plant_scans": PlantScans,
-    "death_link": SubnauticaDeathLink,
-    "start_inventory_from_pool": StartInventoryPool,
-}
+class FillerItemsDistribution(ItemDict):
+    """Random chance weights of various filler resources that can be obtained.
+    Available items: """
+    __doc__ += ", ".join(f"\"{item_name}\"" for item_name in item_names_by_type[ItemType.resource])
+    _valid_keys = frozenset(item_names_by_type[ItemType.resource])
+    default = {item_name: 1 for item_name in item_names_by_type[ItemType.resource]}
+    display_name = "Filler Items Distribution"
+
+    @cached_property
+    def weights_pair(self) -> typing.Tuple[typing.List[str], typing.List[int]]:
+        from itertools import accumulate
+        return list(self.value.keys()), list(accumulate(self.value.values()))
+
+
+@dataclass
+class SubnauticaOptions(PerGameCommonOptions):
+    swim_rule: SwimRule
+    consider_items: ConsiderItems
+    include_seamoth: IncludeSeamoth
+    include_prawn: IncludePrawn
+    include_cyclops: IncludeCyclops
+    early_seaglide: EarlySeaglide
+    seaglide_depth: SeaglideDepth
+    pre_seaglide_distance: PreSeaglideDistance
+    free_samples: FreeSamples
+    ignore_radiation: IgnoreRadiation
+    can_slip_through: CanSlipThrough
+    goal: Goal
+    creature_scans: CreatureScans
+    creature_scan_logic: AggressiveScanLogic
+    plant_scans: PlantScans
+    death_link: SubnauticaDeathLink
+    start_inventory_from_pool: StartInventoryPool
+    filler_items_distribution: FillerItemsDistribution

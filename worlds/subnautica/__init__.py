@@ -4,7 +4,7 @@ import logging
 import itertools
 from typing import List, Dict, Any, cast
 
-from BaseClasses import Region, Entrance, Location, Item, Tutorial, ItemClassification
+from BaseClasses import Region, Location, Item, Tutorial, ItemClassification
 from worlds.AutoWorld import World, WebWorld
 from . import items
 from . import locations
@@ -44,8 +44,8 @@ class SubnauticaWorld(World):
 
     item_name_to_id = {data.name: item_id for item_id, data in items.item_table.items()}
     location_name_to_id = all_locations
-    option_definitions = options.option_definitions
-
+    options_dataclass = options.SubnauticaOptions
+    options: options.SubnauticaOptions
     data_version = 10
     required_client_version = (0, 4, 1)
 
@@ -53,6 +53,8 @@ class SubnauticaWorld(World):
     plants_to_scan: List[str]
 
     def generate_early(self) -> None:
+        if not self.options.filler_items_distribution.weights_pair[1][-1]:
+            raise Exception("Filler Items Distribution needs at least one positive weight.")
         if self.options.early_seaglide:
             self.multiworld.local_early_items[self.player]["Seaglide Fragment"] = 2
 
@@ -111,8 +113,17 @@ class SubnauticaWorld(World):
             planet_region
         ]
 
-    # refer to Rules.py
+    # refer to rules.py
     set_rules = set_rules
+
+    def get_theoretical_swim_depth(self):
+        depth: int = self.options.swim_rule.value
+        consider_items: bool = self.options.consider_items.value
+        seaglide_depth: int = self.options.seaglide_depth.value
+
+        if consider_items:
+            return depth + seaglide_depth + 150
+        return depth
 
     def create_items(self):
         # Generate item pool
@@ -129,7 +140,7 @@ class SubnauticaWorld(World):
                     subnautica_item = self.create_item(item.name)
                     if item.name == "Neptune Launch Platform":
                         if self.options.goal.get_event_name() == "Neptune Launch":
-                            self.multiworld.get_location("Aurora - Captain Data Terminal", self.player).place_locked_item(
+                            self.get_location("Aurora - Captain Data Terminal", self.player).place_locked_item(
                                 subnautica_item)
                         else:
                             pool.append(subnautica_item)
@@ -142,32 +153,35 @@ class SubnauticaWorld(World):
                         pool.append(subnautica_item)
 
         for item_id, item in seamoth_table.items():
-            for i in range(item.count):
-                if self.options.include_seamoth.value < 2:
+            if self.options.include_seamoth.value < 2:
+                for i in range(item.count):
                     pool.append(self.create_item(item.name))
-                else:
-                    extras += 1
+            else:
+                extras += item.count
 
         for item_id, item in prawn_table.items():
-            for i in range(item.count):
-                if self.options.include_prawn.value < 2:
+            if self.options.include_prawn.value < 2:
+                for i in range(item.count):
                     pool.append(self.create_item(item.name))
-                else:
-                    extras += 1
+            else:
+                extras += item.count
 
         for item_id, item in cyclops_table.items():
-            for i in range(item.count):
-                if self.options.include_cyclops.value < 2:
+            if self.options.include_cyclops.value < 2:
+                for i in range(item.count):
                     pool.append(self.create_item(item.name))
-                else:
-                    extras += 1
+            else:
+                extras += item.count
 
-        # If we don't have either of the prawn or cyclops in logical depth, use alternate means
-        # Either a chain of exterior growbeds (finite), or a chain of bases (infinite)
-        # TODO: check if seamoth can make it (these might not be used)
+        # If we can't make the necessary depth by traditional (vehicle) means, use the alternates
+        # Shift the items to progression as part of that change
+        seamoth_can_make_it: bool = False
+        if self.options.include_seamoth.value == 0 and get_theoreitcal_swim_depth(self) + 900 > 1443:
+            seamoth_can_make_it = True
+
         for item_id, item in non_vehicle_depth_table.items():
             for i in range(item.count):
-                if self.options.include_prawn.value > 0 and self.options.include_cyclops.value > 0:
+                if seamoth_can_make_it == False and self.options.include_prawn.value > 0 and self.options.include_cyclops.value > 0:
                     pool.append(self.create_shifted_item(item.name, ItemClassification.progression))
                 else:
                     pool.append(self.create_item(item.name))
@@ -210,7 +224,7 @@ class SubnauticaWorld(World):
             priority_filler.append("Cyclops Bridge Fragment")
             num += 3
 
-        for item_name in self.multiworld.random.sample(priority_filler, k=min(extras, num)):
+        for item_name in self.random.sample(priority_filler, k=min(extras, num)):
             item = self.create_item(item_name)
             pool.append(item)
             extras -= 1
@@ -271,7 +285,8 @@ class SubnauticaWorld(World):
         return ret
 
     def get_filler_item_name(self) -> str:
-        return item_table[self.multiworld.random.choice(items_by_type[ItemType.resource])].name
+        item_names, cum_item_weights = self.options.filler_items_distribution.weights_pair
+        return self.random.choices(item_names, cum_weights=cum_item_weights, k=1)[0]
 
 
 class SubnauticaLocation(Location):
