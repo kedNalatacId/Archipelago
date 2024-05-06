@@ -1,8 +1,14 @@
 import typing
+from dataclasses import dataclass
+from functools import cached_property
 
-from Options import Choice, Range, DeathLink, Toggle, DefaultOnToggle, StartInventoryPool
+from Options import (
+    Choice, Range, DeathLink, Toggle, DefaultOnToggle,
+    StartInventoryPool, ItemDict, PerGameCommonOptions
+)
 from .creatures import all_creatures, Definitions
-# from .plants import all_flora
+from .items import ItemType, item_names_by_type
+from .plants import all_flora, plant_locations
 
 
 class SwimRule(Range):
@@ -26,12 +32,6 @@ class ConsiderItems(Toggle):
     display_name = "Consider Items"
 
 
-class ConsiderExteriorGrowbed(Toggle):
-    """Whether expected depth is also extended by exterior growbeds; adds 500 depth by itself.
-    This only matters if items are considered (both have to be true to take effect)."""
-    display_name = "Consider Exterior Growbed"
-
-
 class PreSeaglideDistance(Range):
     """Maximum distance away from origin for locations to be in logic without seaglide. Default is 800m"""
     display_name = "Pre-Seaglide Distance"
@@ -46,11 +46,44 @@ class EarlySeaglide(DefaultOnToggle):
 
 
 class SeaglideDepth(Range):
-    """ How much additional depth the seaglide allows vs no-seaglide"""
+    """How much additional depth the seaglide allows vs no-seaglide"""
     display_name = "Seaglide Depth"
     range_start  = 100
     default      = 200
     range_end    = 400
+
+
+class IncludeSeamoth(Choice):
+    """Whether to include the Seamoth or not.
+    Include: Include the Seamoth both logically and really.
+    Exclude from Logic: Include the Seamoth, but don't count it towards depth or distance calculations.
+    Exclude: Do not include any Seamoth fragments. The Seamoth will be unobtainable in game."""
+    display_name = "Seamoth"
+    option_include = 0
+    option_exclude_logically = 1
+    option_exclude = 2
+
+
+class IncludePrawnSuit(Choice):
+    """Whether to include the Prawn Suit or not.
+    Include: Include the Prawn Suit both logically and really.
+    Exclude from Logic: Include the Prawn Suit, but don't count it towards depth or distance calculations.
+    Exclude: Do not include any Prawn Suit fragments. The Prawn Suit will be unobtainable in game."""
+    display_name = "Prawn Suit"
+    option_include = 0
+    option_exclude_logically = 1
+    option_exclude = 2
+
+
+class IncludeCyclops(Choice):
+    """Whether to include the Cyclops or not.
+    Include: Include the Cyclops both logically and really.
+    Exclude from Logic: Include the Cyclops, but don't count it towards depth or distance calculations.
+    Exclude: Do not include any Cyclops fragments. The Cyclops will be unobtainable in game."""
+    display_name = "Cyclops"
+    option_include = 0
+    option_exclude_logically = 1
+    option_exclude = 2
 
 
 class FreeSamples(Toggle):
@@ -65,9 +98,19 @@ class IgnoreRadiation(Toggle):
     display_name = "Ignore Radiation"
 
 
-class IgnorePrawnDepth(Toggle):
-    """Whether to include the prawn suit when considering depth. Makes it less likely to do Prawn suit Lost River runs."""
-    display_name = "Ignore Prawn Depth"
+class CanSlipThrough(Choice):
+    """Whether the player is comfortable bypassing some propulsion cannon or laser cutter segments.
+    None: Not able to slip through either Laser Cutter or Propulsion Cannon segments
+    Laser Cutter: able to slip through Laser Cutter segments (Grassy Plateaus East Wreck)
+    Propulsion Cannon: able to slip through Propulsion Cannon segments (Aurora)
+    Both: able to slip through both laser and propsulsion cannon segments
+    """
+    At the moment only applies to the jump into the cargo bay in the Aurora."""
+    display_name = "Can Slip Through"
+    option_none = 0
+    option_laser_cutter = 1
+    option_propulsion_cannon = 2
+    option_both = 3
 
 
 class Goal(Choice):
@@ -92,15 +135,13 @@ class Goal(Choice):
         }[self.value]
 
 
-#class ScannablePlants(Toggle):
-#    """Whether plants are scannable or not"""
-#    display_name = "Scannable Plants"
+class PlantScans(Range):
+    """Place items on specific, randomly chosen, flora scans."""
+    display_name = "Plant Scans"
+    range_end = len(all_flora)
 
-
-#class PlantScans(Range):
-#    """How many (randomly chosen) plants to be in the pool."""
-#    display_name = "Plant Scans"
-#    range_end = len(all_flora)
+    def get_pool(self) -> typing.List[str]:
+        return sorted(plant_locations)
 
 
 class CreatureScans(Range):
@@ -143,21 +184,37 @@ class SubnauticaDeathLink(DeathLink):
     Note: can be toggled via in-game console command "deathlink"."""
 
 
-option_definitions = {
-    "swim_rule": SwimRule,
-    "consider_items": ConsiderItems,
-    "consider_exterior_growbed": ConsiderExteriorGrowbed,
-    "early_seaglide": EarlySeaglide,
-    "seaglide_depth": SeaglideDepth,
-    "pre_seaglide_distance": PreSeaglideDistance,
-    "free_samples": FreeSamples,
-    "ignore_radiation": IgnoreRadiation,
-    "ignore_prawn_depth": IgnorePrawnDepth,
-    "goal": Goal,
-    "creature_scans": CreatureScans,
-    "creature_scan_logic": AggressiveScanLogic,
-#   "scannable_plants": ScannablePlants,
-#   "plant_scans": PlantScans,
-    "death_link": SubnauticaDeathLink,
-    "start_inventory_from_pool": StartInventoryPool,
-}
+class FillerItemsDistribution(ItemDict):
+    """Random chance weights of various filler resources that can be obtained.
+    Available items: """
+    __doc__ += ", ".join(f"\"{item_name}\"" for item_name in item_names_by_type[ItemType.resource])
+    _valid_keys = frozenset(item_names_by_type[ItemType.resource])
+    default = {item_name: 1 for item_name in item_names_by_type[ItemType.resource]}
+    display_name = "Filler Items Distribution"
+
+    @cached_property
+    def weights_pair(self) -> typing.Tuple[typing.List[str], typing.List[int]]:
+        from itertools import accumulate
+        return list(self.value.keys()), list(accumulate(self.value.values()))
+
+
+@dataclass
+class SubnauticaOptions(PerGameCommonOptions):
+    swim_rule: SwimRule
+    consider_items: ConsiderItems
+    include_seamoth: IncludeSeamoth
+    include_prawn: IncludePrawn
+    include_cyclops: IncludeCyclops
+    early_seaglide: EarlySeaglide
+    seaglide_depth: SeaglideDepth
+    pre_seaglide_distance: PreSeaglideDistance
+    free_samples: FreeSamples
+    ignore_radiation: IgnoreRadiation
+    can_slip_through: CanSlipThrough
+    goal: Goal
+    creature_scans: CreatureScans
+    creature_scan_logic: AggressiveScanLogic
+    plant_scans: PlantScans
+    death_link: SubnauticaDeathLink
+    start_inventory_from_pool: StartInventoryPool
+    filler_items_distribution: FillerItemsDistribution
