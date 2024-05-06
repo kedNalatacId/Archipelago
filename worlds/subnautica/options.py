@@ -54,7 +54,7 @@ class EarlySeaglide(DefaultOnToggle):
 
 
 class SeaglideDepth(Range):
-    """ How much additional depth the seaglide allows vs no-seaglide"""
+    """How much additional depth the seaglide allows vs no-seaglide"""
     display_name = "Seaglide Depth"
     range_start  = 100
     default      = 200
@@ -66,6 +66,39 @@ class SeaglideDepth(Range):
     range_start  = 100
     default      = 200
     range_end    = 400
+
+
+class IncludeSeamoth(Choice):
+    """Whether to include the Seamoth or not.
+    Include: Include the Seamoth both logically and really.
+    Exclude from Logic: Include the Seamoth, but don't count it towards depth or distance calculations.
+    Exclude: Do not include any Seamoth fragments. The Seamoth will be unobtainable in game."""
+    display_name = "Seamoth"
+    option_include = 0
+    option_exclude_logically = 1
+    option_exclude = 2
+
+
+class IncludePrawnSuit(Choice):
+    """Whether to include the Prawn Suit or not.
+    Include: Include the Prawn Suit both logically and really.
+    Exclude from Logic: Include the Prawn Suit, but don't count it towards depth or distance calculations.
+    Exclude: Do not include any Prawn Suit fragments. The Prawn Suit will be unobtainable in game."""
+    display_name = "Prawn Suit"
+    option_include = 0
+    option_exclude_logically = 1
+    option_exclude = 2
+
+
+class IncludeCyclops(Choice):
+    """Whether to include the Cyclops or not.
+    Include: Include the Cyclops both logically and really.
+    Exclude from Logic: Include the Cyclops, but don't count it towards depth or distance calculations.
+    Exclude: Do not include any Cyclops fragments. The Cyclops will be unobtainable in game."""
+    display_name = "Cyclops"
+    option_include = 0
+    option_exclude_logically = 1
+    option_exclude = 2
 
 
 class IncludeSeamoth(Choice):
