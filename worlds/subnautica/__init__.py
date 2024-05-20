@@ -139,8 +139,7 @@ class SubnauticaWorld(World):
                     subnautica_item = self.create_item(item.name)
                     if item.name == "Neptune Launch Platform":
                         if self.options.goal.get_event_name() == "Neptune Launch":
-                            self.get_location("Aurora - Captain Data Terminal", self.player).place_locked_item(
-                                subnautica_item)
+                            self.get_location("Aurora - Captain Data Terminal").place_locked_item(subnautica_item)
                         else:
                             pool.append(subnautica_item)
                     elif item.name == "Cyclops Shield Generator":
@@ -175,7 +174,7 @@ class SubnauticaWorld(World):
         # If we can't make the necessary depth by traditional (vehicle) means, use the alternates
         # Shift the items to progression as part of that change
         seamoth_can_make_it: bool = False
-        if self.options.include_seamoth.value == 0 and get_theoreitcal_swim_depth(self) + 900 > 1443:
+        if self.options.include_seamoth.value == 0 and self.get_theoretical_swim_depth() + 900 > 1443:
             seamoth_can_make_it = True
 
         for item_id, item in non_vehicle_depth_table.items():
