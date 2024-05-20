@@ -227,12 +227,12 @@ def get_additional_item_depth(state: "CollectionState", player: int) -> int:
 def get_hardcore_item_depth(state: "CollectionState", player: int, prev_depth: int) -> int:
     depth: int = 0
     if has_exterior_growbed(state, player):
-        depth += 500
+        depth += 200
 
     nuclear_depth = bio_depth = thermal_depth = 0
 
     # have to be able to get to uraninite for nuclear reactor to be useful
-    if prev_depth >= 500 and has_nuclear_reactor(state, player):
+    if prev_depth >= 250 and has_nuclear_reactor(state, player):
         nuclear_depth = 1000
 
     if has_bioreactor(state, player):
@@ -355,17 +355,19 @@ def can_access_location(state: "CollectionState", player: int, loc_id: int, loc:
         else:
             return False
 
+    depth = -pos_y  # y-up
+
     # Seaglide doesn't unlock anything specific, but just allows for faster movement.
     # Otherwise the game is painfully slow. Added: vehicles.
     # TODO: add prawn + grapple?
+    # TODO: allow changing pre-seaglide depth? (maybe not? Is pretty important)
     map_center_dist = math.sqrt(pos_x ** 2 + pos_z ** 2)
-    if map_center_dist > state.multiworld.pre_seaglide_distance[player] and (
+    if (map_center_dist > state.multiworld.pre_seaglide_distance[player] or depth > 200) and (
             not has_seaglide(state, player) and \
             not has_seamoth(state, player) and \
             not has_cyclops(state, player)):
         return False
 
-    depth = -pos_y  # y-up
     return get_max_depth(state, player) >= depth
 
 
