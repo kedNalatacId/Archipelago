@@ -221,6 +221,14 @@ class SubnauticaWorld(World):
             priority_filler.append("Cyclops Hull Fragment")
             priority_filler.append("Cyclops Bridge Fragment")
             num += 3
+        if seamoth_can_make_it == False and self.options.include_prawn.value > 0 and self.options.include_cyclops.value > 0:
+            # Thermal Plant has an unfair advantage; add some non-thermal-plant items
+            # so that hopefully these are more common
+            priority_filler.append("Multipurpose Room")
+            priority_filler.append("Large Room")
+            priority_filler.append("Nuclear Reactor Fragment")
+            priority_filler.append("Bioreactor Fragment")
+            num += 4
 
         for item_name in self.random.sample(priority_filler, k=min(extras, num)):
             item = self.create_item(item_name)
@@ -269,18 +277,6 @@ class SubnauticaWorld(World):
     def create_shifted_item(self, name: str, cls) -> SubnauticaItem:
         item_id: int = self.item_name_to_id[name]
         return SubnauticaItem(name, cls, item_id, player=self.player)
-
-    def create_region(self, name: str, region_locations=None, exits=None):
-        ret = Region(name, self.player, self.multiworld)
-        if region_locations:
-            for location in region_locations:
-                loc_id = self.location_name_to_id.get(location, None)
-                location = SubnauticaLocation(self.player, location, loc_id, ret)
-                ret.locations.append(location)
-        if exits:
-            for region_exit in exits:
-                ret.exits.append(Entrance(self.player, region_exit, ret))
-        return ret
 
     def get_filler_item_name(self) -> str:
         item_names, cum_item_weights = self.options.filler_items_distribution.weights_pair
