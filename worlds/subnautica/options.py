@@ -111,6 +111,7 @@ class CanSlipThrough(Choice):
     option_propulsion_cannon = 2
     option_both = 3
 
+
 class Goal(Choice):
     """Goal to complete.
     Launch: Leave the planet.
