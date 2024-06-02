@@ -21,7 +21,7 @@ def has_exterior_growbed(state: "CollectionState", player: int) -> bool:
 
 
 def has_reactor_capable_room(state: "CollectionState", player: int) -> bool:
-    return state.has("BaseLargeRoom", 1) or state.has("BaseRoom", 1)
+    return state.has("BaseLargeRoom", player, 1) or state.has("BaseRoom", player, 1)
 
 
 def has_modification_station(state: "CollectionState", player: int) -> bool:
@@ -153,10 +153,10 @@ def has_cyclops_shield(state: "CollectionState", player: int, options: Subnautic
     if options.include_cyclops.value < 2:
         return has_cyclops(state, player, options, True) and \
             state.has("Cyclops Shield Generator", player)
-    else:
-        return has_moonpool(state, player) and \
-            has_vehicle_upgrade_console(state, player) and \
-            state.has("Cyclops Shield Generator", player)
+
+    return has_moonpool(state, player) and \
+        has_vehicle_upgrade_console(state, player) and \
+        state.has("Cyclops Shield Generator", player)
 
 
 def has_ultra_high_capacity_tank(state: "CollectionState", player: int) -> bool:
@@ -225,7 +225,7 @@ def get_hardcore_item_depth(state: "CollectionState", player: int, prev_depth: i
     nuclear_depth = bio_depth = thermal_depth = 0
 
     # have to be able to get to uraninite for nuclear reactor to be useful
-    if prev_depth >= 250 and has_nuclear_reactor(state, player):
+    if (prev_depth + depth) >= 250 and has_nuclear_reactor(state, player):
         nuclear_depth = 1500
 
     if has_bioreactor(state, player):
@@ -288,7 +288,7 @@ def get_max_depth(state: "CollectionState", player: int, options: SubnauticaOpti
 
     # If we don't have a vehicle that can go to 1444m depth, then we have to use "hardcore" methods
     # PreSeaglide Distance, laser cutter, and radiation will still gate some checks, so it's not completely open
-    if seamoth_can_make_it == False \
+    if seamoth_can_make_it is False \
             and options.include_prawn.value > 0 \
             and options.include_cyclops.value > 0:
         return max_depth + get_hardcore_item_depth(state, player, max_depth)
