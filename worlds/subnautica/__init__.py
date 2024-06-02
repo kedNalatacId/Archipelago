@@ -135,7 +135,7 @@ class SubnauticaWorld(World):
             if item_id in grouped:
                 extras += item.count
             else:
-                for i in range(item.count):
+                for _ in range(item.count):
                     subnautica_item = self.create_item(item.name)
                     if item.name == "Neptune Launch Platform":
                         if self.options.goal.get_event_name() == "Neptune Launch":
@@ -152,21 +152,21 @@ class SubnauticaWorld(World):
 
         for item_id, item in seamoth_table.items():
             if self.options.include_seamoth.value < 2:
-                for i in range(item.count):
+                for _ in range(item.count):
                     pool.append(self.create_item(item.name))
             else:
                 extras += item.count
 
         for item_id, item in prawn_table.items():
             if self.options.include_prawn.value < 2:
-                for i in range(item.count):
+                for _ in range(item.count):
                     pool.append(self.create_item(item.name))
             else:
                 extras += item.count
 
         for item_id, item in cyclops_table.items():
             if self.options.include_cyclops.value < 2:
-                for i in range(item.count):
+                for _ in range(item.count):
                     pool.append(self.create_item(item.name))
             else:
                 extras += item.count
@@ -177,9 +177,14 @@ class SubnauticaWorld(World):
         if self.options.include_seamoth.value == 0 and self.get_theoretical_swim_depth() + 900 > 1443:
             seamoth_can_make_it = True
 
+        advanced_logic: bool = False
+        if seamoth_can_make_it is False and self.options.include_prawn.value > 0 and \
+                self.options.include_cyclops.value > 0:
+            advanced_logic = True
+
         for item_id, item in non_vehicle_depth_table.items():
-            for i in range(item.count):
-                if seamoth_can_make_it == False and self.options.include_prawn.value > 0 and self.options.include_cyclops.value > 0:
+            for _ in range(item.count):
+                if advanced_logic:
                     pool.append(self.create_shifted_item(item.name, ItemClassification.progression))
                 else:
                     pool.append(self.create_item(item.name))
@@ -221,7 +226,7 @@ class SubnauticaWorld(World):
             priority_filler.append("Cyclops Hull Fragment")
             priority_filler.append("Cyclops Bridge Fragment")
             num += 3
-        if seamoth_can_make_it == False and self.options.include_prawn.value > 0 and self.options.include_cyclops.value > 0:
+        if advanced_logic:
             # Thermal Plant has an unfair advantage; add some non-thermal-plant items
             # so that hopefully these are more common
             priority_filler.append("Multipurpose Room")
@@ -232,6 +237,12 @@ class SubnauticaWorld(World):
 
         for item_name in self.random.sample(priority_filler, k=min(extras, num)):
             item = self.create_item(item_name)
+
+            # Make sure if we make any non-vehicle items here that show up do so as progression
+            for alt_item in non_vehicle_depth_table.values():
+                if item_name == alt_item.name and advanced_logic:
+                    item = self.create_shifted_item(item_name, ItemClassification.progression)
+
             pool.append(item)
             extras -= 1
 
