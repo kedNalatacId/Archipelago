@@ -17,11 +17,7 @@ def has_seaglide(state: "CollectionState", player: int) -> bool:
 
 
 def has_exterior_growbed(state: "CollectionState", player: int) -> bool:
-    return state.has("FarmingTray", player, 1)
-
-
-def has_reactor_capable_room(state: "CollectionState", player: int) -> bool:
-    return state.has("BaseLargeRoom", player, 1) or state.has("BaseRoom", player, 1)
+    return state.has("Exterior Growbed", player, 1)
 
 
 def has_modification_station(state: "CollectionState", player: int) -> bool:
@@ -73,11 +69,11 @@ def has_cyclops_hull(state: "CollectionState", player: int) -> bool:
 
 
 def has_nuclear_reactor(state: "CollectionState", player: int) -> bool:
-    return state.has("Nuclear Reactor Fragment", player, 3) and has_reactor_capable_room(state, player)
+    return state.has("Nuclear Reactor Fragment", player, 3) and has_utility_room(state, player)
 
 
 def has_bioreactor(state: "CollectionState", player: int) -> bool:
-    return state.has("Bioreactor Fragment", player, 2) and has_reactor_capable_room(state, player)
+    return state.has("Bioreactor Fragment", player, 2) and has_utility_room(state, player)
 
 
 def has_thermal_plant(state: "CollectionState", player: int) -> bool:
