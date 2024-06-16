@@ -38,7 +38,7 @@ all_flora: Dict[int, FloraDict] = {
     34124: { 'name': 'Jellyshroom', 'position': {'x': -350, 'y': -152, 'z': -208} },
     34125: { 'name': 'Lantern Tree', 'position': {'x': -707, 'y': 1, 'z': -1097} },
     34126: { 'name': 'Marblemelon Plant', 'position': {'x': -707, 'y': 1, 'z': -1097} },
-    34127: { 'name': 'Membrain Tre', 'position': {'x': -382, 'y': -133, 'z': -669} },
+    34127: { 'name': 'Membrain Tree', 'position': {'x': -382, 'y': -133, 'z': -669} },
     34128: { 'name': 'Ming Plant', 'position': {'x': -707, 'y': 1, 'z': -1097} },
     34129: { 'name': 'Pink Cap', 'position': {'x': -707, 'y': 1, 'z': -1097} },
     34130: { 'name': 'Pygmy Fan', 'position': {'x': -670, 'y': -190, 'z': 714} },
@@ -63,3 +63,7 @@ suffix: str = " Scan"
 plant_locations: Dict[str, int] = {
     data["name"] + suffix: loc_id for loc_id, data in all_flora.items()
 }
+
+all_plants_presorted: List[str] = [
+    name for loc_id, name in all_flora.items()
+]

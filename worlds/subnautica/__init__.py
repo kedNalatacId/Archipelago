@@ -135,12 +135,11 @@ class SubnauticaWorld(World):
             if item_id in grouped:
                 extras += item.count
             else:
-                for i in range(item.count):
+                for _ in range(item.count):
                     subnautica_item = self.create_item(item.name)
                     if item.name == "Neptune Launch Platform":
                         if self.options.goal.get_event_name() == "Neptune Launch":
-                            self.get_location("Aurora - Captain Data Terminal", self.player).place_locked_item(
-                                subnautica_item)
+                            self.get_location("Aurora - Captain Data Terminal").place_locked_item(subnautica_item)
                         else:
                             pool.append(subnautica_item)
                     elif item.name == "Cyclops Shield Generator":
@@ -153,21 +152,21 @@ class SubnauticaWorld(World):
 
         for item_id, item in seamoth_table.items():
             if self.options.include_seamoth.value < 2:
-                for i in range(item.count):
+                for _ in range(item.count):
                     pool.append(self.create_item(item.name))
             else:
                 extras += item.count
 
         for item_id, item in prawn_table.items():
             if self.options.include_prawn.value < 2:
-                for i in range(item.count):
+                for _ in range(item.count):
                     pool.append(self.create_item(item.name))
             else:
                 extras += item.count
 
         for item_id, item in cyclops_table.items():
             if self.options.include_cyclops.value < 2:
-                for i in range(item.count):
+                for _ in range(item.count):
                     pool.append(self.create_item(item.name))
             else:
                 extras += item.count
@@ -175,12 +174,17 @@ class SubnauticaWorld(World):
         # If we can't make the necessary depth by traditional (vehicle) means, use the alternates
         # Shift the items to progression as part of that change
         seamoth_can_make_it: bool = False
-        if self.options.include_seamoth.value == 0 and get_theoreitcal_swim_depth(self) + 900 > 1443:
+        if self.options.include_seamoth.value == 0 and self.get_theoretical_swim_depth() + 900 > 1443:
             seamoth_can_make_it = True
 
+        advanced_logic: bool = False
+        if seamoth_can_make_it is False and self.options.include_prawn.value > 0 and \
+                self.options.include_cyclops.value > 0:
+            advanced_logic = True
+
         for item_id, item in non_vehicle_depth_table.items():
-            for i in range(item.count):
-                if seamoth_can_make_it == False and self.options.include_prawn.value > 0 and self.options.include_cyclops.value > 0:
+            for _ in range(item.count):
+                if advanced_logic:
                     pool.append(self.create_shifted_item(item.name, ItemClassification.progression))
                 else:
                     pool.append(self.create_item(item.name))
@@ -222,9 +226,23 @@ class SubnauticaWorld(World):
             priority_filler.append("Cyclops Hull Fragment")
             priority_filler.append("Cyclops Bridge Fragment")
             num += 3
+        if advanced_logic:
+            # Thermal Plant has an unfair advantage; add some non-thermal-plant items
+            # so that hopefully these are more common
+            priority_filler.append("Multipurpose Room")
+            priority_filler.append("Large Room")
+            priority_filler.append("Nuclear Reactor Fragment")
+            priority_filler.append("Bioreactor Fragment")
+            num += 4
 
         for item_name in self.random.sample(priority_filler, k=min(extras, num)):
             item = self.create_item(item_name)
+
+            # Make sure if we make any non-vehicle items here that show up do so as progression
+            for alt_item in non_vehicle_depth_table.values():
+                if item_name == alt_item.name and advanced_logic:
+                    item = self.create_shifted_item(item_name, ItemClassification.progression)
+
             pool.append(item)
             extras -= 1
 
@@ -270,18 +288,6 @@ class SubnauticaWorld(World):
     def create_shifted_item(self, name: str, cls) -> SubnauticaItem:
         item_id: int = self.item_name_to_id[name]
         return SubnauticaItem(name, cls, item_id, player=self.player)
-
-    def create_region(self, name: str, region_locations=None, exits=None):
-        ret = Region(name, self.player, self.multiworld)
-        if region_locations:
-            for location in region_locations:
-                loc_id = self.location_name_to_id.get(location, None)
-                location = SubnauticaLocation(self.player, location, loc_id, ret)
-                ret.locations.append(location)
-        if exits:
-            for region_exit in exits:
-                ret.exits.append(Entrance(self.player, region_exit, ret))
-        return ret
 
     def get_filler_item_name(self) -> str:
         item_names, cum_item_weights = self.options.filler_items_distribution.weights_pair
