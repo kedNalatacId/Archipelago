@@ -18,53 +18,54 @@ class FillError(RuntimeError):
 
 
 class FillLogger():
-    def __init__(self, total_items: int):
-        self.min_time: float = 0.25
-        self.max_time: float = 1.0
-        self.start_time = time.time()
-        self.cur_time = time.time()
-        self.step: int = max(round(total_items * 0.1), 1000)
+    min_time: float = 0.25
 
-        # The console handler is set in main()
-        self.logger = logging.getLogger()
-        self.console_handler = self.logger.handlers[0]
+    def __init__(self, total_items: int):
+        self.start_time = time.time()
+        self.prev_time  = time.time()
+        self.cur_time   = time.time()
+        self.step: int  = max(round(total_items * 0.1), 1000)
 
     def log_fill_progress(self, name: str, placed: int, total_items: int, final: bool = False) -> None:
-        if sys.stdin.isatty():
-            self.log_tty(name, placed, total_items, final)
+        # never print the small stuff
+        if total_items < 1000:
             return
 
-        self.log_nontty(name, placed, total_items, final)
+        if sys.stdin.isatty():
+            self.log_tty(name, placed, total_items, final)
+        else:
+            self.log_nontty(name, placed, total_items, final)
 
-    # web app logging; just log 10x times, no need for anything fancy
-    def log_nontty(self, name: str, placed: int, total_items: int, final: bool):
+    # web app logging; just log 10x times (or less), no need for anything fancy
+    def log_nontty(self, name: str, placed: int, total_items: int, final: bool) -> None:
         # some sections would be way too spammy if they printed all the small things
-        if total_items > 999 and (final or placed % self.step == 0):
+        if final or placed % self.step == 0:
             pct: float = round(100 * (placed / total_items), 2)
             logging.info(f"Current fill step ({name}) at {placed}/{total_items} ({pct}%) items placed.")
 
     # on CLI, be a little friendlier
-    def log_tty(self, name: str, placed: int, total_items: int, final: bool):
+    def log_tty(self, name: str, placed: int, total_items: int, final: bool) -> None:
         self.cur_time = time.time()
 
-        # Anything small will generally run so fast that this'll catch it
-        if self.cur_time - self.start_time < self.min_time:
+        # Always print final, otherwise skip if the time between prints is too short
+        if not final and self.cur_time - self.prev_time < self.min_time:
             return
 
-        # if placed % self.step != 0 and self.cur_time - self.start_time < self.max_time:
-        if self.cur_time - self.start_time < self.max_time:
-            return
+        # Update our sliding window
+        self.prev_time = self.cur_time
 
-        endcap=''
-        if final:
-            self.console_handler.terminator = '\n'
-        else:
-            self.console_handler.terminator = ''
-            endcap='\r'
+        # I've tried a few different ways of getting the terminator to do the right thing.
+        # They all failed. I hate python's logging module for this monstrosity (but it works)
+        old_term = logging.StreamHandler.terminator
+        if not final:
+            logging.StreamHandler.terminator = '\r'
 
         pct: float = round(100 * (placed / total_items), 2)
         elapsed: int = round(self.cur_time - self.start_time)
-        logging.info(f"Current fill step ({name}) at {placed}/{total_items} ({pct}%) items placed [{elapsed} seconds elapsed].{endcap}")
+        logging.info(f"Current fill step ({name}) at {placed}/{total_items} ({pct}%) items placed [{elapsed} seconds elapsed].")
+
+        # reset our monstrosity
+        logging.StreamHandler.terminator = old_term
 
 
 def sweep_from_pool(base_state: CollectionState, itempool: typing.Sequence[Item] = tuple(),

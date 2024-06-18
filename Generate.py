@@ -44,6 +44,7 @@ def mystery_argparse():
     parser.add_argument('--spoiler', type=int, default=defaults.spoiler)
     parser.add_argument('--outputpath', default=options.general_options.output_path,
                         help="Path to output folder. Absolute or relative to cwd.")  # absolute or relative to cwd
+    parser.add_argument('--output_path', dest='outputpath', help=argparse.SUPPRESS)
     parser.add_argument('--race', action='store_true', default=defaults.race)
     parser.add_argument('--meta_file_path', default=defaults.meta_file_path)
     parser.add_argument('--log_level', default='info', help='Sets log level')
@@ -56,6 +57,7 @@ def mystery_argparse():
     parser.add_argument("--skip_output", action="store_true",
                         help="Skips generation assertion and output stages and skips multidata and spoiler output. "
                              "Intended for debugging and testing purposes.")
+    parser.add_argument('--skipoutput', dest='skip_output', action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     if os.sep not in args.weights_file_path:
