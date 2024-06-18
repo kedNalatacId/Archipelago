@@ -18,33 +18,35 @@ class FillError(RuntimeError):
 
 
 class FillLogger():
+    min_size: int   = 1000
     min_time: float = 0.25
 
     def __init__(self, total_items: int):
-        self.start_time = time.time()
-        self.prev_time  = time.time()
-        self.cur_time   = time.time()
-        self.step: int  = max(round(total_items * 0.1), 1000)
+        self.start_time       = time.time()
+        self.prev_time        = time.time()
+        self.cur_time         = time.time()
+        self.step: int        = max(round(total_items * 0.1), 1000)
+        self.total_items: int = total_items
 
-    def log_fill_progress(self, name: str, placed: int, total_items: int, final: bool = False) -> None:
+    def log_fill_progress(self, name: str, placed: int, final: bool = False) -> None:
         # never print the small stuff
-        if total_items < 1000:
+        if self.total_items < self.min_size:
             return
 
         if sys.stdin.isatty():
-            self.log_tty(name, placed, total_items, final)
+            self.log_tty(name, placed, final)
         else:
-            self.log_nontty(name, placed, total_items, final)
+            self.log_nontty(name, placed, final)
 
-    # web app logging; just log 10x times (or less), no need for anything fancy
-    def log_nontty(self, name: str, placed: int, total_items: int, final: bool) -> None:
+    # any non-CLI logging; just log 10x times (or less), no need for anything fancy
+    def log_nontty(self, name: str, placed: int, final: bool) -> None:
         # some sections would be way too spammy if they printed all the small things
         if final or placed % self.step == 0:
-            pct: float = round(100 * (placed / total_items), 2)
-            logging.info(f"Current fill step ({name}) at {placed}/{total_items} ({pct}%) items placed.")
+            pct: float = round(100 * (placed / self.total_items), 2)
+            logging.info(f"Current fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed.")
 
     # on CLI, be a little friendlier
-    def log_tty(self, name: str, placed: int, total_items: int, final: bool) -> None:
+    def log_tty(self, name: str, placed: int, final: bool) -> None:
         self.cur_time = time.time()
 
         # Always print final, otherwise skip if the time between prints is too short
@@ -60,9 +62,9 @@ class FillLogger():
         if not final:
             logging.StreamHandler.terminator = '\r'
 
-        pct: float = round(100 * (placed / total_items), 2)
+        pct: float = round(100 * (placed / self.total_items), 2)
         elapsed: int = round(self.cur_time - self.start_time)
-        logging.info(f"Current fill step ({name}) at {placed}/{total_items} ({pct}%) items placed [{elapsed} seconds elapsed].")
+        logging.info(f"Current fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed [{elapsed} seconds elapsed].")
 
         # reset our monstrosity
         logging.StreamHandler.terminator = old_term
@@ -216,12 +218,12 @@ def fill_restrictive(multiworld: MultiWorld, base_state: CollectionState, locati
             placements.append(spot_to_fill)
             placed += 1
 
-            fill_log.log_fill_progress(name, placed, total)
+            fill_log.log_fill_progress(name, placed)
 
             if on_place:
                 on_place(spot_to_fill)
 
-    fill_log.log_fill_progress(name, placed, total, final=True)
+    fill_log.log_fill_progress(name, placed, final=True)
 
     if cleanup_required:
         # validate all placements and remove invalid ones
@@ -328,9 +330,9 @@ def remaining_fill(multiworld: MultiWorld,
         multiworld.push_item(spot_to_fill, item_to_place, False)
         placements.append(spot_to_fill)
         placed += 1
-        fill_log.log_fill_progress(name, placed, total)
+        fill_log.log_fill_progress(name, placed)
 
-    fill_log.log_fill_progress(name, placed, total, final=True)
+    fill_log.log_fill_progress(name, placed, final=True)
 
     if unplaced_items and locations:
         # There are leftover unplaceable items and locations that won't accept them
