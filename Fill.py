@@ -330,7 +330,7 @@ def remaining_fill(multiworld: MultiWorld,
         placed += 1
         fill_log.log_fill_progress(name, placed, total)
 
-    fill_log.log_fill_progress(name, placed, total, True)
+    fill_log.log_fill_progress(name, placed, total, final=True)
 
     if unplaced_items and locations:
         # There are leftover unplaceable items and locations that won't accept them
