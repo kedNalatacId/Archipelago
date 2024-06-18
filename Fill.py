@@ -40,7 +40,6 @@ class FillLogger():
 
     # any non-CLI logging; just log 10x times (or less), no need for anything fancy
     def log_nontty(self, name: str, placed: int, final: bool) -> None:
-        # some sections would be way too spammy if they printed all the small things
         if final or placed % self.step == 0:
             pct: float = round(100 * (placed / self.total_items), 2)
             logging.info(f"Current fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed.")
