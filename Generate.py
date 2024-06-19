@@ -556,6 +556,7 @@ if __name__ == '__main__':
     confirmation = None
     if not sys.stdin.isatty():
         confirmation = atexit.register(input, "Press enter to close.")
+
     multiworld = main()
     if __debug__:
         import gc
@@ -565,6 +566,7 @@ if __name__ == '__main__':
         gc.collect()  # need to collect to deref all hard references
         assert not weak(), f"MultiWorld object was not de-allocated, it's referenced {sys.getrefcount(weak())} times." \
                            " This would be a memory leak."
+
     # in case of error-free exit should not need confirmation
     if confirmation:
         atexit.unregister(confirmation)
