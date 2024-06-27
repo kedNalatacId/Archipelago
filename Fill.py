@@ -20,6 +20,7 @@ class FillError(RuntimeError):
 class FillLogger():
     min_size: int   = 1000
     min_time: float = 0.25
+    min_gap:  float = 5.0
 
     def __init__(self, total_items: int):
         self.start_time       = time.time()
@@ -38,11 +39,12 @@ class FillLogger():
         else:
             self.log_nontty(name, placed, final)
 
-    # any non-CLI logging; just log 10x times (or less), no need for anything fancy
+    # any non-CLI logging; just log 10x times (or fewer), no need for anything fancy
     def log_nontty(self, name: str, placed: int, final: bool) -> None:
         if final or placed % self.step == 0:
+            status: str = "Completed" if final else "Current"
             pct: float = round(100 * (placed / self.total_items), 2)
-            logging.info(f"Current fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed.")
+            logging.info(f"{status} fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed.")
 
     # on CLI, be a little friendlier
     def log_tty(self, name: str, placed: int, final: bool) -> None:
@@ -61,9 +63,12 @@ class FillLogger():
         if not final:
             logging.StreamHandler.terminator = '\r'
 
+        status: str = "Completed" if final else "Current"
         pct: float = round(100 * (placed / self.total_items), 2)
-        elapsed: str = time.strftime("%H:%M:%S", time.gmtime(round(self.cur_time - self.start_time)))
-        logging.info(f"Current fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed [{elapsed} elapsed].")
+        diff: int = round(self.cur_time - self.start_time)
+        hrs: int = int(diff / 3600)
+        elapsed: str = time.strftime(f"{hrs:02}h:%Mm:%Ss", time.gmtime(diff))
+        logging.info(f"{status} fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed [{elapsed} elapsed].")
 
         # reset our monstrosity
         logging.StreamHandler.terminator = old_term
