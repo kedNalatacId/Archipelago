@@ -299,7 +299,7 @@ def main(args, seed=None, baked_server_options: Optional[Dict[str, object]] = No
         multiworld.spoiler.to_file(os.path.join(temp_dir, '%s_Spoiler.txt' % outfilebase))
 
     if args.skip_output:
-        logger.info('Done. Skipped output/spoiler generation. Total Time: %s', time.perf_counter() - start)
+        logger.info('Done. Skipped output/spoiler generation. Total Time: %s', round(time.perf_counter() - start, 2))
         return multiworld
 
     logger.info(f'Beginning output...')
@@ -437,5 +437,5 @@ def main(args, seed=None, baked_server_options: Optional[Dict[str, object]] = No
             for file in os.scandir(temp_dir):
                 zf.write(file.path, arcname=file.name)
 
-    logger.info('Done. Enjoy. Total Time: %s', time.perf_counter() - start)
+    logger.info('Done. Enjoy. Total Time: %s', round(time.perf_counter() - start, 2))
     return multiworld
