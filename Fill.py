@@ -18,9 +18,10 @@ class FillError(RuntimeError):
 
 
 class FillLogger():
-    min_size: int   = 1000
-    min_time: float = 0.25
-    min_gap:  float = 5.0
+    min_size: int   = 1000   # minimum number of items we care about reporting (static)
+    min_time: float = 0.25   # fraction of a second between reports (dynamic)
+    min_gap:  float = 5.0    # seconds between gaps to calculate "run rate"
+    ring_size: int  = 20     # number of items in ring buffer for calculating run rate
 
     def __init__(self, total_items: int):
         self.start_time       = time.time()
@@ -29,12 +30,17 @@ class FillLogger():
         self.step: int        = max(round(total_items * 0.1), 1000)
         self.total_items: int = total_items
 
+        # For tracking run rate; list of count of items at the time we saw them
+        self.ringu: int = 0
+        self.ring_buffer: List[Tuple[int, float]] = [(0,0)] * self.ring_size
+        self.ring_filled_once = False
+
     def log_fill_progress(self, name: str, placed: int, final: bool = False) -> None:
         # never print the small stuff
         if self.total_items < self.min_size:
             return
 
-        if sys.stdin.isatty():
+        if sys.stdin.isatty() and sys.stdout.isatty():
             self.log_tty(name, placed, final)
         else:
             self.log_nontty(name, placed, final)
@@ -42,7 +48,7 @@ class FillLogger():
     # any non-CLI logging; just log 10x times (or fewer), no need for anything fancy
     def log_nontty(self, name: str, placed: int, final: bool) -> None:
         if final or placed % self.step == 0:
-            status: str = "Completed" if final else "Current"
+            status: str = "Finished" if final else "Current"
             pct: float = round(100 * (placed / self.total_items), 2)
             logging.info(f"{status} fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed.")
 
@@ -54,6 +60,9 @@ class FillLogger():
         if not final and self.cur_time - self.prev_time < self.min_time:
             return
 
+        # the entire string (which may not exist)
+        run_rate: str = self.mind_the_gap(placed)
+
         # Update our sliding window
         self.prev_time = self.cur_time
 
@@ -63,15 +72,49 @@ class FillLogger():
         if not final:
             logging.StreamHandler.terminator = '\r'
 
-        status: str = "Completed" if final else "Current"
+        # time's hour field only goes to 24
+        status: str = "Finished" if final else "Current"
         pct: float = round(100 * (placed / self.total_items), 2)
         diff: int = round(self.cur_time - self.start_time)
+
         hrs: int = int(diff / 3600)
         elapsed: str = time.strftime(f"{hrs:02}h:%Mm:%Ss", time.gmtime(diff))
-        logging.info(f"{status} fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed [{elapsed} elapsed].")
+        logging.info(f"{status} fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed [{elapsed} elapsed{run_rate}].")
 
         # reset our monstrosity
         logging.StreamHandler.terminator = old_term
+
+    # Why this is called "mind the gap":
+    #    While watching the above fill logging run without this, it looks like after a long gap of time a single item
+    #    will get placed. Once that happens, the next items will get placed relatively quickly
+    #    (2-3 in quick succession). We don't want to calculate based on those quick jumps, but on the longer gaps that
+    #    occur. So we space out our calculations if they're above a minimum threshhold that generally only longer seeds
+    #    will run into.
+    def mind_the_gap(self, placed: int) -> str:
+        """ Calculate the run rate for longer asyncs; either items per second or seconds per item. """
+        # for small asyncs this doesn't matter, skip it entire (don't bog down the Fill process with any extra calculations)
+        if self.cur_time - self.prev_time < self.min_gap:
+            return ""
+
+        self.ring_buffer[self.ringu] = (placed, self.cur_time)
+        self.ringu = (self.ringu + 1) % self.ring_size
+
+        # Don't start reporting ips/spi until we've filled the ring buffer at least once (so we can get an average)
+        if self.ringu:
+            if not self.ring_filled_once:
+                return ""
+        else:
+            self.ring_filled_once = True
+
+        time_diff: int = round(max(self.ring_buffer)[1] - min(self.ring_buffer)[1])
+        ring_items: int = max(self.ring_buffer)[0] - min(self.ring_buffer)[0]
+
+        # Switch from items per second to seconds per item as the seed goes long
+        ips: int = round(ring_items / time_diff)
+        if ips >= 1:
+            return f"; {ips} i/s"
+
+        return f"; {round(1 / ips)} s/i"
 
 
 def sweep_from_pool(base_state: CollectionState, itempool: typing.Sequence[Item] = tuple(),
