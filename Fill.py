@@ -40,10 +40,20 @@ class FillLogger():
         if self.total_items < self.min_size:
             return
 
-        if sys.stdin.isatty() and sys.stdout.isatty():
-            self.log_tty(name, placed, final)
-        else:
-            self.log_nontty(name, placed, final)
+        logger = logging.getLogger()
+        root_handlers = logger.handlers
+
+        # we should only have 2x handlers: stdout and file.
+        # this will try to log to both separately so they both look correct but we get more info on CLI
+        for handler in root_handlers:
+            logger.handlers = []
+            logger.addHandler(handler)
+            if hasattr(handler, 'baseFilename'):
+                self.log_nontty(name, placed, final)
+            else:
+                self.log_tty(name, placed, final)
+
+        logger.handlers = root_handlers
 
     # any non-CLI logging; just log 10x times (or fewer), no need for anything fancy
     def log_nontty(self, name: str, placed: int, final: bool) -> None:
