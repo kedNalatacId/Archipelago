@@ -40,27 +40,17 @@ class FillLogger():
         if self.total_items < self.min_size:
             return
 
-        logger = logging.getLogger()
-        root_handlers = logger.handlers
-
-        # we should only have 2x handlers: stdout and file.
-        # this will try to log to both separately so they both look correct but we get more info on CLI
-        for handler in root_handlers:
-            logger.handlers = []
-            logger.addHandler(handler)
-            if hasattr(handler, 'baseFilename'):
-                self.log_nontty(name, placed, final)
-            else:
-                self.log_tty(name, placed, final)
-
-        logger.handlers = root_handlers
+        # We use the "NoFile" and "NoStream" attributes to correctly manage the below
+        self.log_nontty(name, placed, final)
+        self.log_tty(name, placed, final)
 
     # any non-CLI logging; just log 10x times (or fewer), no need for anything fancy
     def log_nontty(self, name: str, placed: int, final: bool) -> None:
         if final or placed % self.step == 0:
             status: str = "Finished" if final else "Current"
             pct: float = round(100 * (placed / self.total_items), 2)
-            logging.info(f"{status} fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed.")
+            logging.info(f"{status} fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed.",
+                         extra={"NoStream": True})
 
     # on CLI, be a little friendlier
     def log_tty(self, name: str, placed: int, final: bool) -> None:
@@ -89,7 +79,9 @@ class FillLogger():
 
         hrs: int = int(diff / 3600)
         elapsed: str = time.strftime(f"{hrs:02}h:%Mm:%Ss", time.gmtime(diff))
-        logging.info(f"{status} fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed [{elapsed} elapsed{run_rate}].")
+        logging.info(f"{status} fill step ({name}) at {placed}/{self.total_items}"
+                     f" ({pct}%) items placed [{elapsed} elapsed{run_rate}].",
+                     extra={"NoFile": True})
 
         # reset our monstrosity
         logging.StreamHandler.terminator = old_term
