@@ -125,7 +125,7 @@ class FillLogger():
         if ips >= 1:
             return f"; {round(ips)} i/s"
 
-        return f"; {round(1 / ips)} s/i"
+        return f"; {round(time_diff / ring_items)} s/i"
 
 
 def sweep_from_pool(base_state: CollectionState, itempool: typing.Sequence[Item] = tuple(),
