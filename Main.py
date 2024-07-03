@@ -286,13 +286,16 @@ def main(args, seed=None, baked_server_options: Optional[Dict[str, object]] = No
     multiworld.random.passthrough = False
 
     if args.spoiler and args.skip_output:
-        if args.spoiler > 1:
-            logger.info('Calculating playthrough.')
-            multiworld.spoiler.create_playthrough(create_paths=args.spoiler > 2)
+        try:
+            if args.spoiler > 1:
+                logger.info('Calculating playthrough.')
+                multiworld.spoiler.create_playthrough(create_paths=args.spoiler > 2)
 
-        temp_dir = output_path("")
-        outfilebase = 'AP_' + multiworld.seed_name
-        multiworld.spoiler.to_file(os.path.join(temp_dir, '%s_Spoiler.txt' % outfilebase))
+            temp_dir = output_path("")
+            outfilebase = 'AP_' + multiworld.seed_name
+            multiworld.spoiler.to_file(os.path.join(temp_dir, '%s_Spoiler.txt' % outfilebase))
+        except:
+            logger.error("Failed to write spoiler!")
 
     if args.skip_output:
         logger.info('Done. Skipped output/spoiler generation. Total Time: %s seconds.', round(time.perf_counter() - start, 2))
@@ -420,11 +423,14 @@ def main(args, seed=None, baked_server_options: Optional[Dict[str, object]] = No
                 future.result()
 
         if args.spoiler:
-            if args.spoiler > 1:
-                logger.info('Calculating playthrough.')
-                multiworld.spoiler.create_playthrough(create_paths=args.spoiler > 2)
+            try:
+                if args.spoiler > 1:
+                    logger.info('Calculating playthrough.')
+                    multiworld.spoiler.create_playthrough(create_paths=args.spoiler > 2)
 
-            multiworld.spoiler.to_file(os.path.join(temp_dir, '%s_Spoiler.txt' % outfilebase))
+                multiworld.spoiler.to_file(os.path.join(temp_dir, '%s_Spoiler.txt' % outfilebase))
+            except:
+                logger.error("Failed to write spoiler!")
 
         zipfilename = output_path(f"AP_{multiworld.seed_name}.zip")
         logger.info(f"Creating final archive at {zipfilename}")
