@@ -6,7 +6,6 @@ from Options import (
     Choice, Range, DeathLink, Toggle, DefaultOnToggle,
     StartInventoryPool, ItemDict, PerGameCommonOptions
 )
-
 from .creatures import all_creatures, Definitions
 from .items import ItemType, item_names_by_type
 from .plants import all_flora, plant_locations
