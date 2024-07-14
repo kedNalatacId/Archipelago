@@ -385,11 +385,12 @@ class GfxMod(FreeText, LADXROption):
 
     extensions = [".bin", ".bdiff", ".png", ".bmp"]
 
-    for file in os.listdir(__spriteDir):
-        name, extension = os.path.splitext(file)
-        if extension in extensions:
-            __spriteFiles[name].append(file)
-            
+    if os.path.isdir(__spriteDir):
+        for file in os.listdir(__spriteDir):
+            name, extension = os.path.splitext(file)
+            if extension in extensions:
+                __spriteFiles[name].append(file)
+
     def __init__(self, value: str):
         super().__init__(value)
 
