@@ -20,8 +20,8 @@ class FillError(RuntimeError):
 class FillLogger():
     min_size: int   = 1000   # minimum number of items we care about reporting (static)
     min_time: float = 0.25   # fraction of a second between reports (dynamic)
-    min_gap:  float = 1.0    # seconds between gaps to calculate "run rate"
-    ring_size: int  = 20     # number of items in ring buffer for calculating run rate
+    min_gap:  float = 0.5    # seconds between gaps to calculate "run rate"
+    ring_size: int  = 10     # number of items in ring buffer for calculating run rate
 
     def __init__(self, total_items: int):
         self.start_time       = time.time()
@@ -110,15 +110,22 @@ class FillLogger():
         if not self.ring_filled_once:
             return ""
 
-        time_diff: int = round(max(self.ring_buffer)[1] - min(self.ring_buffer)[1])
-        ring_items: int = max(self.ring_buffer)[0] - min(self.ring_buffer)[0]
+        # The minimum value will be the one just past us
+        #   (if we're at position n, position n+1 (mod size) will be the oldest entry)
+        #
+        # So all we need to do is subtract our value (the max) from the next value (the min)
+        # This saves us from walking the ring buffer looking for the max and min values the long way.
+        time_diff: float = self.ring_buffer[self.ringu][1] \
+            - self.ring_buffer[(self.ringu + 1) % self.ring_size][1]
+        ring_items: int = self.ring_buffer[self.ringu][0] \
+            - self.ring_buffer[(self.ringu + 1) % self.ring_size][0]
 
         # Switch from items per second to seconds per item as the seed goes long
-        ips: int = round(ring_items / time_diff)
+        ips: float = ring_items / time_diff
         if ips >= 1:
-            return f"; {ips} i/s"
+            return f"; {round(ips)} i/s"
 
-        return f"; {round(time_diff / ring_items)} s/i"
+        return f"; {round(1 / ips)} s/i"
 
 
 def sweep_from_pool(base_state: CollectionState, itempool: typing.Sequence[Item] = tuple(),
