@@ -20,10 +20,6 @@ def has_exterior_growbed(state: "CollectionState", player: int) -> bool:
     return state.has("Exterior Growbed", player, 1)
 
 
-def has_reactor_capable_room(state: "CollectionState", player: int) -> bool:
-    return state.has("BaseLargeRoom", player, 1) or state.has("BaseRoom", player, 1)
-
-
 def has_modification_station(state: "CollectionState", player: int) -> bool:
     return state.has("Modification Station Fragment", player, 3)
 
