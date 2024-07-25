@@ -29,6 +29,10 @@ class FillLogger():
         self.cur_time         = time.time()
         self.step: int        = max(round(total_items * 0.1), 1000)
         self.total_items: int = total_items
+        self.is_debug: bool   = False
+
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            self.is_debug = True
 
         # For tracking run rate; list of count of items at the time we saw them
         self.ringu: int = 0
@@ -42,15 +46,23 @@ class FillLogger():
 
         # We use the "NoFile" and "NoStream" attributes to correctly manage the below
         self.log_nontty(name, placed, final)
-        self.log_tty(name, placed, final)
+        if not self.is_debug:
+            self.log_tty(name, placed, final)
 
     # any non-CLI logging; just log 10x times (or fewer), no need for anything fancy
     def log_nontty(self, name: str, placed: int, final: bool) -> None:
-        if final or placed % self.step == 0:
-            status: str = "Finished" if final else "Current"
-            pct: float = round(100 * (placed / self.total_items), 2)
-            logging.info(f"{status} fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed.",
-                         extra={"NoStream": True})
+        if not final and placed % self.step:
+            return
+#       if final or placed % self.step == 0:
+
+        extra_args: Dict[Str, Bool] = {}
+        if not self.is_debug:
+            extra_args = {"NoStream": True}
+
+        status: str = "Finished" if final else "Current"
+        pct: float = round(100 * (placed / self.total_items), 2)
+        logging.info(f"{status} fill step ({name}) at {placed}/{self.total_items} ({pct}%) items placed.",
+                     extra=extra_args)
 
     # on CLI, be a little friendlier
     def log_tty(self, name: str, placed: int, final: bool) -> None:
@@ -111,21 +123,20 @@ class FillLogger():
             return ""
 
         # The minimum value will be the one just past us
-        #   (if we're at position n, position n+1 (mod size) will be the oldest entry)
+        #   (if we're at position n+1, the oldest entry; the newest is at n)
         #
-        # So all we need to do is subtract our value (the max) from the next value (the min)
+        # So all we need to do is subtract the previous value (the max) from the this value (the min)
         # This saves us from walking the ring buffer looking for the max and min values the long way.
-        time_diff: float = self.ring_buffer[self.ringu][1] \
-            - self.ring_buffer[(self.ringu + 1) % self.ring_size][1]
-        ring_items: int = self.ring_buffer[self.ringu][0] \
-            - self.ring_buffer[(self.ringu + 1) % self.ring_size][0]
+        time_diff: float = self.ring_buffer[(self.ringu - 1) % self.ring_size][1] \
+            - self.ring_buffer[self.ringu][1]
+        ring_items: int = self.ring_buffer[(self.ringu - 1) % self.ring_size][0] \
+            - self.ring_buffer[self.ringu][0]
 
         # Switch from items per second to seconds per item as the seed goes long
-        ips: float = ring_items / time_diff
-        if ips >= 1:
-            return f"; {round(ips)} i/s"
+        if ring_items >= time_diff:
+            return f"; {round(ring_items / time_diff, 1)} i/s"
 
-        return f"; {round(1 / ips)} s/i"
+        return f"; {round(time_diff / ring_items, 1)} s/i"
 
 
 def sweep_from_pool(base_state: CollectionState, itempool: typing.Sequence[Item] = tuple(),
