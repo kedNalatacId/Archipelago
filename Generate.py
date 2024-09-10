@@ -69,11 +69,14 @@ def get_seed_name(random_source) -> str:
     return f"{random_source.randint(0, pow(10, seeddigits) - 1)}".zfill(seeddigits)
 
 def get_files_from_disk(path: str) -> Iterable:
-    if os.path.isfile(path):
-        yield from (f for f in os.scandir(os.path.abspath(os.path.dirname(path))) \
-            if os.path.basename(f.name) == os.path.basename(path))
-    elif os.path.isdir(path):
-        yield from os.scandir(path)
+    real_path = path
+    if path != os.path.expanduser(path):
+        real_path = os.path.expanduser(path)
+    if os.path.isfile(real_path):
+        yield from (f for f in os.scandir(os.path.abspath(os.path.dirname(real_path))) \
+            if os.path.basename(f.name) == os.path.basename(real_path))
+    elif os.path.isdir(real_path):
+        yield from os.scandir(real_path)
     else:
         raise ValueError("player_files_path must point to a file or directory that exists.")
 
@@ -121,10 +124,10 @@ def main(args=None) -> Tuple[argparse.Namespace, int]:
     player_id = 1
     player_files = {}
     for file in get_files_from_disk(args.player_files_path):
-        _path = args.player_files_path \
-            if os.path.isdir(args.player_files_path) \
-            else os.path.dirname(args.player_files_path)
-        fname = file.name
+        _path = os.path.expanduser(args.player_files_path) \
+            if os.path.isdir(os.path.expanduser(args.player_files_path)) \
+            else os.path.dirname(os.path.expanduser(args.player_files_path))
+        fname = file.name.casefold()
         if file.is_file() and not fname.startswith(".") and (fname.endswith(".yml") or fname.endswith(".yaml")) and \
                 os.path.join(_path, fname) not in {args.meta_file_path, args.weights_file_path}:
             path = os.path.join(_path, fname)
