@@ -72,7 +72,10 @@ class SMWWorld(World):
     web = SMWWeb()
     
     def __init__(self, multiworld: MultiWorld, player: int):
-        self.rom_name_available_event = threading.Event()
+        import Utils
+#       self.rom_name_available_event = threading.Event()
+        self.rom_name = bytearray(f'SMW{Utils.__version__.replace(".", "")[0:3]}_{player}_{multiworld.seed:11}\0', 'utf8')[:21]
+        self.rom_name.extend([0] * (21 - len(self.rom_name)))
         super().__init__(multiworld, player)
 
     @classmethod
@@ -223,7 +226,7 @@ class SMWWorld(World):
 
             rompath = os.path.join(output_directory, f"{self.multiworld.get_out_file_name_base(self.player)}.sfc")
             rom.write_to_file(rompath)
-            self.rom_name = rom.name
+#           self.rom_name = rom.name
 
             patch = SMWDeltaPatch(os.path.splitext(rompath)[0]+SMWDeltaPatch.patch_file_ending, player=player,
                                   player_name=multiworld.player_name[player], patched_path=rompath)
@@ -231,14 +234,14 @@ class SMWWorld(World):
         except:
             raise
         finally:
-            self.rom_name_available_event.set()  # make sure threading continues and errors are collected
+#           self.rom_name_available_event.set()  # make sure threading continues and errors are collected
             if os.path.exists(rompath):
                 os.unlink(rompath)
 
     def modify_multidata(self, multidata: dict):
         import base64
         # wait for self.rom_name to be available.
-        self.rom_name_available_event.wait()
+#       self.rom_name_available_event.wait()
         rom_name = getattr(self, "rom_name", None)
         # we skip in case of error, so that the original error in the output thread is the one that gets raised
         if rom_name:

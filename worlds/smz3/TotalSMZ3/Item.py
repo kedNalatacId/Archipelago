@@ -214,9 +214,6 @@ class Item:
     @staticmethod
     def CreateProgressionPool(world):
         itemPool = [
-            Item(ItemType.ProgressiveShield),
-            Item(ItemType.ProgressiveShield),
-            Item(ItemType.ProgressiveShield),
             Item(ItemType.ProgressiveSword),
             Item(ItemType.ProgressiveSword),
             Item(ItemType.Bow),
@@ -232,7 +229,6 @@ class Item:
             Item(ItemType.Hammer),
             Item(ItemType.Shovel),
             Item(ItemType.Flute),
-            Item(ItemType.Bugnet),
             Item(ItemType.Book),
             Item(ItemType.Bottle),
             Item(ItemType.Somaria),
@@ -285,6 +281,9 @@ class Item:
     @staticmethod
     def CreateNicePool(world):
         itemPool = [
+            Item(ItemType.ProgressiveShield),
+            Item(ItemType.ProgressiveShield),
+            Item(ItemType.ProgressiveShield),
             Item(ItemType.ProgressiveTunic),
             Item(ItemType.ProgressiveTunic),
             Item(ItemType.ProgressiveSword),
@@ -311,7 +310,8 @@ class Item:
     def CreateJunkPool(world):
         itemPool = [
             Item(ItemType.Arrow),
-            Item(ItemType.OneHundredRupees)
+            Item(ItemType.OneHundredRupees),
+            Item(ItemType.Bugnet),
         ]
 
         Item.AddRange(itemPool, 24, Item(ItemType.HeartPiece))
@@ -338,13 +338,18 @@ class Item:
     # The order of the dungeon pool is significant
     @staticmethod
     def CreateDungeonPool(world):
+        itemPool = []
+
+        itemPool += CreateDungeonKeys(world)
+        itemPool += CreateALTTPMaps(world)
+        itemPool += CreateALTTPCompasses(world)
+
+        return itemPool
+
+    @staticmethod
+    def CreateDungeonKeys(world):
         itemPool = [Item(ItemType.BigKeyGT)]
         Item.AddRange(itemPool, 4, Item(ItemType.KeyGT))
-        if (not world.Config.Keysanity):
-            itemPool += [
-                Item(ItemType.MapGT),
-                Item(ItemType.CompassGT),
-                ]
         itemPool += [
             Item(ItemType.BigKeyEP),
             Item(ItemType.BigKeyDP),
@@ -370,34 +375,8 @@ class Item:
         Item.AddRange(itemPool, 3, Item(ItemType.KeyMM))
         Item.AddRange(itemPool, 4, Item(ItemType.KeyTR))
 
-        itemPool += [
-            Item(ItemType.MapEP),
-            Item(ItemType.MapDP),
-            Item(ItemType.MapTH),
-            Item(ItemType.MapPD),
-            Item(ItemType.MapSP),
-            Item(ItemType.MapSW),
-            Item(ItemType.MapTT),
-            Item(ItemType.MapIP),
-            Item(ItemType.MapMM),
-            Item(ItemType.MapTR),
-        ]
-        if (not world.Config.Keysanity):
-            itemPool += [
-                Item(ItemType.MapHC),
-                Item(ItemType.CompassEP),
-                Item(ItemType.CompassDP),
-                Item(ItemType.CompassTH),
-                Item(ItemType.CompassPD),
-                Item(ItemType.CompassSP),
-                Item(ItemType.CompassSW),
-                Item(ItemType.CompassTT),
-                Item(ItemType.CompassIP),
-                Item(ItemType.CompassMM),
-                Item(ItemType.CompassTR),
-            ]
-
         for item in itemPool:
+            item.Progression = True
             item.World = world
 
         return itemPool
@@ -439,7 +418,53 @@ class Item:
         ]
 
         for item in itemPool:
-            item.Progression = True
+            item.World = world
+
+        return itemPool
+
+    @staticmethod
+    def CreateALTTPMaps(world):
+        itemPool = []
+        if not world.Config.Keysanity:
+            itemPool += [ Item(ItemType.MapGT), Item(ItemType.MapHC) ]
+        itemPool += [
+            Item(ItemType.MapEP),
+            Item(ItemType.MapDP),
+            Item(ItemType.MapTH),
+            Item(ItemType.MapPD),
+            Item(ItemType.MapSP),
+            Item(ItemType.MapSW),
+            Item(ItemType.MapTT),
+            Item(ItemType.MapIP),
+            Item(ItemType.MapMM),
+            Item(ItemType.MapTR),
+        ]
+
+        for item in itemPool:
+            item.World = world
+
+        return itemPool
+
+    @staticmethod
+    def CreateALTTPCompasses(world):
+        itemPool = []
+
+        if (not world.Config.Keysanity):
+            itemPool += [
+                Item(ItemType.CompassGT),
+                Item(ItemType.CompassEP),
+                Item(ItemType.CompassDP),
+                Item(ItemType.CompassTH),
+                Item(ItemType.CompassPD),
+                Item(ItemType.CompassSP),
+                Item(ItemType.CompassSW),
+                Item(ItemType.CompassTT),
+                Item(ItemType.CompassIP),
+                Item(ItemType.CompassMM),
+                Item(ItemType.CompassTR),
+            ]
+
+        for item in itemPool:
             item.World = world
 
         return itemPool
@@ -498,7 +523,6 @@ class Progression:
     CardWreckedShipBoss: bool
     CardLowerNorfairL1: bool
     CardLowerNorfairBoss: bool
-    def CanBlockLasers(self): return self.shield >= 3
     Sword: bool
     MasterSword: bool
     Bow: bool
@@ -546,8 +570,6 @@ class Progression:
     TwoPowerBombs: bool
     ETank: int
     ReserveTank: int
-
-    shield: int
 
     itemMapping = [
         ItemType.BigKeyEP,

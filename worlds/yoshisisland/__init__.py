@@ -78,7 +78,11 @@ class YoshisIslandWorld(World):
     rom_name: bytearray
 
     def __init__(self, multiworld: MultiWorld, player: int):
-        self.rom_name_available_event = threading.Event()
+#       self.rom_name_available_event = threading.Event()
+        self.rom_name
+        import Utils
+        self.rom_name = bytearray(f'YOSHIAP{Utils.__version__.replace(".", "")[0:3]}_{player}_{world.seed:11}\0', "utf8")[:21]
+        self.rom_name.extend([0] * (21 - len(self.rom_name)))
         super().__init__(multiworld, player)
         self.locked_locations = []
 
@@ -348,19 +352,19 @@ class YoshisIslandWorld(World):
 
             rompath = os.path.join(output_directory, f"{self.multiworld.get_out_file_name_base(self.player)}.sfc")
             rom.write_to_file(rompath)
-            self.rom_name = rom.name
+#           self.rom_name = rom.name
 
             patch = YoshisIslandDeltaPatch(os.path.splitext(rompath)[0] + YoshisIslandDeltaPatch.patch_file_ending,
                                            player=player, player_name=world.player_name[player], patched_path=rompath)
             patch.write()
         finally:
-            self.rom_name_available_event.set()
+#           self.rom_name_available_event.set()
             if os.path.exists(rompath):
                 os.unlink(rompath)
 
     def modify_multidata(self, multidata: dict) -> None:
         # wait for self.rom_name to be available.
-        self.rom_name_available_event.wait()
+#       self.rom_name_available_event.wait()
         rom_name = getattr(self, "rom_name", None)
         if rom_name:
             new_name = base64.b64encode(bytes(self.rom_name)).decode()

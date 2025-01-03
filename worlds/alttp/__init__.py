@@ -245,7 +245,7 @@ class ALTTPWorld(World):
     # custom instance vars
     dungeon_local_item_names: typing.Set[str]
     dungeon_specific_item_names: typing.Set[str]
-    rom_name_available_event: threading.Event
+#   rom_name_available_event: threading.Event
     has_progressive_bows: bool
     dungeons: typing.Dict[str, Dungeon]
     waterfall_fairy_bottle_fill: str
@@ -266,7 +266,10 @@ class ALTTPWorld(World):
     def __init__(self, *args, **kwargs):
         self.dungeon_local_item_names = set()
         self.dungeon_specific_item_names = set()
-        self.rom_name_available_event = threading.Event()
+#       self.rom_name_available_event = threading.Event()
+        import Utils
+        self.rom_name = bytearray(f'AP{Utils.__version__.replace(".", "")[0:3]}_{player}_{world.seed:11}\0', 'utf8')[:21]
+        self.rom_name.extend([0] * (21 - len(self.rom_name)))
         self.pushed_shop_inventories = threading.Event()
         self.has_progressive_bows = False
         self.dungeons = {}
@@ -601,11 +604,11 @@ class ALTTPWorld(World):
                                    player_name=multiworld.player_name[player], patched_path=rompath)
             patch.write()
             os.unlink(rompath)
-            self.rom_name = rom.name
+#           self.rom_name = rom.name
         except:
             raise
-        finally:
-            self.rom_name_available_event.set() # make sure threading continues and errors are collected
+#       finally:
+#           self.rom_name_available_event.set() # make sure threading continues and errors are collected
 
     @classmethod
     def stage_extend_hint_information(cls, world, hint_data: typing.Dict[int, typing.Dict[int, str]]):
@@ -661,7 +664,7 @@ class ALTTPWorld(World):
     def modify_multidata(self, multidata: dict):
         import base64
         # wait for self.rom_name to be available.
-        self.rom_name_available_event.wait()
+#       self.rom_name_available_event.wait()
         rom_name = getattr(self, "rom_name", None)
         # we skip in case of error, so that the original error in the output thread is the one that gets raised
         if rom_name:

@@ -70,8 +70,10 @@ class KDL3World(World):
     settings: typing.ClassVar[KDL3Settings]
 
     def __init__(self, multiworld: MultiWorld, player: int):
-        self.rom_name = None
-        self.rom_name_available_event = threading.Event()
+#       self.rom_name_available_event = threading.Event()
+        import Utils
+        self.rom_name = bytearray(f'KDL3{Utils.__version__.replace(".", "")[0:3]}_{player}_{world.seed:11}\0', 'utf8')[:21]
+        self.rom_name.extend([0] * (21 - len(self.rom_name)))
         super().__init__(multiworld, player)
         self.copy_abilities: Dict[str, str] = vanilla_enemies.copy()
         self.required_heart_stars: int = 0  # we fill this during create_items
@@ -308,7 +310,7 @@ class KDL3World(World):
 
             rom_path = os.path.join(output_directory, f"{self.multiworld.get_out_file_name_base(self.player)}.sfc")
             rom.write_to_file(rom_path)
-            self.rom_name = rom.name
+#           self.rom_name = rom.name
 
             patch = KDL3DeltaPatch(os.path.splitext(rom_path)[0] + KDL3DeltaPatch.patch_file_ending, player=self.player,
                                    player_name=self.multiworld.player_name[self.player], patched_path=rom_path)
@@ -316,13 +318,13 @@ class KDL3World(World):
         except Exception:
             raise
         finally:
-            self.rom_name_available_event.set()  # make sure threading continues and errors are collected
+#           self.rom_name_available_event.set()  # make sure threading continues and errors are collected
             if os.path.exists(rom_path):
                 os.unlink(rom_path)
 
     def modify_multidata(self, multidata: dict):
         # wait for self.rom_name to be available.
-        self.rom_name_available_event.wait()
+#       self.rom_name_available_event.wait()
         rom_name = getattr(self, "rom_name", None)
         # we skip in case of error, so that the original error in the output thread is the one that gets raised
         if rom_name:

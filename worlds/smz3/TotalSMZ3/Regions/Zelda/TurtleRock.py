@@ -41,7 +41,8 @@ class TurtleRock(Z3Region, IReward, IMedallionAccess):
             ]
 
     def LaserBridge(self, items: Progression):
-        return items.BigKeyTR and items.KeyTR >= 3 and items.Lamp and (items.Cape or items.Byrna or items.CanBlockLasers)
+        # return items.BigKeyTR and items.KeyTR >= 3 and items.Lamp and (items.Cape or items.Byrna or items.CanBlockLasers)
+        return items.BigKeyTR and items.KeyTR >= 3
 
     def CanBeatBoss(self, items: Progression):
         return items.Firerod and items.Icerod

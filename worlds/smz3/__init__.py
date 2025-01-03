@@ -83,7 +83,16 @@ class SMZ3World(World):
     required_client_version = (0, 4, 4)
 
     def __init__(self, world: MultiWorld, player: int):
-        self.rom_name_available_event = threading.Event()
+        import Utils
+        #self.rom_name_available_event = threading.Event()
+        z3Glitch =  "N" if world.z3_logic == Config.Z3Logic.Nmg else \
+            "O" if world.z3_logic == Config.Z3Logic.Owg else \
+            "C"
+        smGlitch =  "N" if world.sm_logic == Config.SMLogic.Normal else \
+            "H" if world.sm_logic == Config.SMLogic.Hard else \
+            "M"
+        rom_name = f"ZSM{TotalSMZ3Patch.Major}{TotalSMZ3Patch.Minor}{TotalSMZ3Patch.Patch}{Utils.__version__.replace('.', '')[0:3]}{z3Glitch}{smGlitch}{player}{world.seed:08x}".ljust(21)[:21]
+        self.rom_name = bytearray(rom_name, 'utf8')
         self.locations: Dict[str, Location] = {}
         self.unreachable = []
         super().__init__(world, player)
@@ -91,7 +100,7 @@ class SMZ3World(World):
     @classmethod
     def isProgression(cls, itemType):
         progressionTypes = {
-                                ItemType.ProgressiveShield,
+                                # ItemType.ProgressiveShield,
                                 ItemType.ProgressiveSword,
                                 ItemType.Bow,
                                 ItemType.Hookshot,
@@ -106,7 +115,7 @@ class SMZ3World(World):
                                 ItemType.Hammer,
                                 ItemType.Shovel,
                                 ItemType.Flute,
-                                ItemType.Bugnet,
+                                # ItemType.Bugnet,
                                 ItemType.Book,
                                 ItemType.Bottle,
                                 ItemType.Somaria,
@@ -207,19 +216,24 @@ class SMZ3World(World):
         self.multiworld.state.smz3state[self.player] = TotalSMZ3Item.Progression([])
 
     def create_items(self):
-        self.dungeon = TotalSMZ3Item.Item.CreateDungeonPool(self.smz3World)
+        # Create dungeon items piecemeal, as that's how we'll use them later
+        alttp_keys = TotalSMZ3Item.Item.CreateDungeonKeys(self.smz3World)
+        alttp_maps = TotalSMZ3Item.Item.CreateALTTPMaps(self.smz3World)
+        alttp_compasses = TotalSMZ3Item.Item.CreateALTTPCompasses(self.smz3World)
+        self.dungeon = alttp_keys + alttp_maps + alttp_compasses
         self.dungeon.reverse()
+
         self.progression = TotalSMZ3Item.Item.CreateProgressionPool(self.smz3World)
         self.keyCardsItems = TotalSMZ3Item.Item.CreateKeycards(self.smz3World)
-        self.mapItems = TotalSMZ3Item.Item.CreateSmMaps(self.smz3World) + TotalSMZ3Item.Item.CreateALTTPMaps(self.smz3World)
+        self.mapItems = TotalSMZ3Item.Item.CreateSmMaps(self.smz3World) + alttp_maps
 
         niceItems = TotalSMZ3Item.Item.CreateNicePool(self.smz3World)
         junkItems = TotalSMZ3Item.Item.CreateJunkPool(self.smz3World)
         allJunkItems = junkItems + self.mapItems
-        self.junkItemsNames = [item.Type.name for item in junkItems]
+        self.junkItemsNames = [item.Type.name for item in allJunkItems]
 
         if (self.smz3World.Config.Keysanity):
-            progressionItems = self.progression + self.dungeon + self.keyCardsItems
+            progressionItems = self.progression + alttp_keys + self.keyCardsItems
         else:
             progressionItems = self.progression
             # Dungeons items here are not in the itempool and will be prefilled locally so they must stay local
@@ -230,7 +244,12 @@ class SMZ3World(World):
         itemPool = [SMZ3Item(item.Type.name, ItemClassification.progression, item.Type, self.item_name_to_id[item.Type.name], self.player, item) for item in progressionItems] + \
                     [SMZ3Item(item.Type.name, ItemClassification.useful, item.Type, self.item_name_to_id[item.Type.name], self.player, item) for item in niceItems] + \
                     [SMZ3Item(item.Type.name, ItemClassification.filler, item.Type, self.item_name_to_id[item.Type.name], self.player, item) for item in allJunkItems]
-        self.smz3DungeonItems = [SMZ3Item(item.Type.name, ItemClassification.progression, item.Type, self.item_name_to_id[item.Type.name], self.player, item) for item in self.dungeon]
+
+        # Recreate dungeon items to stop maps/compasses from being progression
+        self.smz3DungeonItems = [SMZ3Item(item.Type.name, ItemClassification.progression, item.Type, self.item_name_to_id[item.Type.name], self.player, item) for item in alttp_keys] + \
+                                [SMZ3Item(item.Type.name, ItemClassification.useful, item.Type, self.item_name_to_id[item.Type.name], self.player, item) for item in alttp_maps]  + \
+                                [SMZ3Item(item.Type.name, ItemClassification.filler, item.Type, self.item_name_to_id[item.Type.name], self.player, item) for item in alttp_compasses]
+
         self.multiworld.itempool += itemPool
 
     def set_rules(self):
@@ -399,7 +418,7 @@ class SMZ3World(World):
         return patch
 
     def SnesCustomization(self, addr: int):
-        addr = (0x400000 if addr < 0x800000 else 0)| (addr & 0x3FFFFF)
+        addr = (0x400000 if addr < 0x800000 else 0) | (addr & 0x3FFFFF)
         return addr
 
     def apply_customization(self):
@@ -439,6 +458,72 @@ class SMZ3World(World):
                         ]:
                 patch[self.SnesCustomization(addr)] = bytearray([value])
 
+        # Link's House Name
+        if self.options.links_house_name != "":
+            # only support alpha for now
+            def get_links_house_letter(c):
+                if c >= 'A' and c <= 'F':
+                    return [ ord(c) + 9, 1 ]
+                elif c >= 'G' and c <= 'V':
+                    return [ ord(c) + 25, 1 ]
+                elif c >= 'W' and c <= 'Z':
+                    return [ ord(c) + 41, 1 ]
+                elif c >= 'a' and c <= 'p':
+                    return [ ord(c) - 1, 0 ]
+                elif c >= 'q' and c <= 'z':
+                    return [ ord(c) + 15, 0 ]
+
+                return []
+
+            housename = bytearray()
+            for letter in str(self.options.links_house_name.value):
+                for translated_letter in get_links_house_letter(letter):
+                    housename.extend([translated_letter])
+
+            patch[self.SnesCustomization(0x5E03FA)] = bytearray(housename)
+
+        # Patch SM Controls
+        sm_buttons = {
+            "select": [ 0x00, 0x20 ],
+            "Select": [ 0x00, 0x20 ],
+            "A":      [ 0x80, 0x00 ],
+            "B":      [ 0x00, 0x80 ],
+            "X":      [ 0x40, 0x00 ],
+            "Y":      [ 0x00, 0x40 ],
+            "L":      [ 0x20, 0x00 ],
+            "R":      [ 0x10, 0x00 ],
+            "None":   [ 0x00, 0x00 ],
+            }
+
+        # Not working yet
+        if "jump" in self.options.sm_controls:
+            patch[self.SnesCustomization(0x01b325)] = sm_buttons[self.options.sm_controls["jump"]]
+            patch[self.SnesCustomization(0x02f233)] = sm_buttons[self.options.sm_controls["jump"]]
+
+        if "dash" in self.options.sm_controls:
+            patch[self.SnesCustomization(0x01b32b)] = sm_buttons[self.options.sm_controls["dash"]]
+            patch[self.SnesCustomization(0x02f239)] = sm_buttons[self.options.sm_controls["dash"]]
+
+        if "shot" in self.options.sm_controls:
+            patch[self.SnesCustomization(0x01b331)] = sm_buttons[self.options.sm_controls["shot"]]
+            patch[self.SnesCustomization(0x02f22d)] = sm_buttons[self.options.sm_controls["shot"]]
+
+        if "item_cancel" in self.options.sm_controls:
+            patch[self.SnesCustomization(0x01b337)] = sm_buttons[self.options.sm_controls["item_cancel"]]
+            patch[self.SnesCustomization(0x02f23f)] = sm_buttons[self.options.sm_controls["item_cancel"]]
+
+        if "item_select" in self.options.sm_controls:
+            patch[self.SnesCustomization(0x01b33d)] = sm_buttons[self.options.sm_controls["item_select"]]
+            patch[self.SnesCustomization(0x02f245)] = sm_buttons[self.options.sm_controls["item_select"]]
+
+        if "angle_up" in self.options.sm_controls:
+            patch[self.SnesCustomization(0x01b343)] = sm_buttons[self.options.sm_controls["angle_up"]]
+            patch[self.SnesCustomization(0x02f24b)] = sm_buttons[self.options.sm_controls["angle_up"]]
+
+        if "angle_down" in self.options.sm_controls:
+            patch[self.SnesCustomization(0x01b349)] = sm_buttons[self.options.sm_controls["angle_down"]]
+            patch[self.SnesCustomization(0x02f251)] = sm_buttons[self.options.sm_controls["angle_down"]]
+
         return patch
 
     def generate_output(self, output_directory: str):
@@ -469,15 +554,134 @@ class SMZ3World(World):
             filename = os.path.join(output_directory, f"{outfilebase}.sfc")
             with open(filename, "wb") as binary_file:
                 binary_file.write(base_combined_rom)
+            self.apply_character_sprites(filename, self.options.sprite_settings, self.options.link_sprite, self.options.samus_sprite)
             patch = SMZ3DeltaPatch(os.path.splitext(filename)[0] + SMZ3DeltaPatch.patch_file_ending, player=self.player,
                                    player_name=self.multiworld.player_name[self.player], patched_path=filename)
             patch.write()
             os.remove(filename)
-            self.rom_name = bytearray(patcher.title, 'utf8')
+            #self.rom_name = bytearray(patcher.title, 'utf8')
         except:
             raise
-        finally:
-            self.rom_name_available_event.set() # make sure threading continues and errors are collected
+#       finally:
+#           self.rom_name_available_event.set() # make sure threading continues and errors are collected
+
+    # doesn't currently work, and is in the wrong place; code is fine, will stay here until it starts working
+    def apply_character_sprites(self, rom, sprset, lunk, samus):
+        self.cache_sprite_list(sprset)
+        link_sprite = self.get_sprite(sprset, lunk, "z3")
+        samus_sprite = self.get_sprite(sprset, samus, "m3")
+
+        if link_sprite != "":
+            self.apply_sprite(rom, sprset, link_sprite)
+        if samus_sprite != "":
+            self.apply_sprite(rom, sprset, samus_sprite)
+
+    def cache_sprite_list(self, sprite_settings):
+        import time
+
+        cur_time   = time.time()
+        cache_age  = 25
+        cache_path = os.path.join(sprite_settings["sprite_cache_path"], "sprite_list.json")
+        if os.path.exists(cache_path):
+            cache_age = (time.time() - os.path.getmtime(cache_path)) / 60 / 60
+
+        if cache_age > 23:
+            import urllib.request
+            sprite_url = "http://smalttpr.mymm1.com/sprites/"
+            if "sprite_URL" in sprite_settings:
+                sprite_url = sprite_settings["sprite_URL"]
+            sprite_list = urllib.request.urlopen(sprite_url)
+
+            with open(cache_path, mode='wb') as cache:
+                cache.write(sprite_list.read())
+
+    # This not only retrieves the sprite from online but also makes it usable (converts it as necessary)
+    def get_sprite(self, sprite_settings, spr_pref, game):
+        if spr_pref["sprite"][0:4].lower() == "http":
+            local_sprite_path = os.path.join(sprite_settings["sprite_cache_path"], game, os.path.split(spr_pref["sprite"])[1])
+            sprite_url = spr_pref["sprite"]
+        else:
+            sprite_list = os.path.join(sprite_settings["sprite_cache_path"], "sprite_list.json")
+            import json
+            with open(sprite_list) as sl:
+                raw_list = json.load(sl)
+            if game not in raw_list or "approved" not in raw_list[game]:
+                return ""
+            allowed = raw_list[game]["approved"]
+
+            sprite_name = None
+            if spr_pref["sprite"] == "random":
+                sprite_name = random.choice(list(allowed))
+            elif spr_pref["sprite"] in allowed:
+                sprite_name = spr_pref["sprite"]
+            else:
+                for nam in allowed.keys():
+                    if spr_pref["sprite"] in nam:
+                        sprite_name = nam
+                        break
+                if sprite_name is None:
+                    print(f"Couldn't find sprite: {spr_pref['sprite']}")
+                    return ""
+            sprite = allowed[sprite_name]
+
+            local_sprite_path = os.path.join(sprite_settings["sprite_cache_path"], game, f"{sprite_name}.rdc")
+            sprite_url = sprite["file"]
+
+        if not os.path.exists(local_sprite_path):
+            import urllib.request
+            sprite_dl = urllib.request.urlopen(sprite_url)
+
+            with open(local_sprite_path, mode='wb') as cache:
+                cache.write(sprite_dl.read())
+
+        converted_sprite_path = os.path.join(local_sprite_path)
+        if os.path.exists(converted_sprite_path):
+            return converted_sprite_path
+
+        import tempfile
+        tmp_sprite_path = tempfile.NamedTemporaryFile(suffix='.rdc')
+
+        # spritesomething uses some resources locally (grr); have to change local working dir to facilitate
+        cwd = os.getcwd()
+        sprsom_dir = os.path.split(sprite_settings["sprite_something_bin"])[0]
+        os.chdir(sprsom_dir)
+        os.system(' '.join([
+            sprite_settings["python_bin"],
+            sprite_settings["sprite_something_bin"],
+            "--cli yes",
+            "--mode=export",
+            f"--export-filename={converted_sprite_path}",
+            f"--sprite={tmp_sprite_path.name}"
+        ]))
+        os.chdir(cwd)
+
+        tmp_sprite_path.close()
+
+        return converted_sprite_path
+
+    def apply_sprite(self, rom, sprite_settings, sprite):
+        # spritesomething uses some resources locally (grr); have to change local working dir to facilitate
+#       print(f"applying sprite ({sprite}) via:")
+#       print(' '.join([
+#           sprite_settings["python_bin"],
+#           sprite_settings["sprite_something_bin"],
+#           "--cli yes",
+#           "--mode=inject",
+#           f"--src-filename={sprite}",
+#           f"--dest-filename={rom}"
+#           ]))
+        cwd = os.getcwd()
+        sprsom_dir = os.path.split(sprite_settings["sprite_something_bin"])[0]
+        os.chdir(sprsom_dir)
+        os.system(' '.join([
+            sprite_settings["python_bin"],
+            sprite_settings["sprite_something_bin"],
+            "--cli yes",
+            "--mode=inject",
+            f"--src-filename={sprite}",
+            f"--dest-filename={rom}"
+            ]))
+        os.chdir(cwd)
 
     def modify_multidata(self, multidata: dict):
         import base64
@@ -490,7 +694,7 @@ class SMZ3World(World):
                     logger.warning(f"Attempted to remove nonexistent item id {item_id} from smz3 precollected items ({item_name})")
 
         # wait for self.rom_name to be available.
-        self.rom_name_available_event.wait()
+        #self.rom_name_available_event.wait()
         rom_name = getattr(self, "rom_name", None)
         # we skip in case of error, so that the original error in the output thread is the one that gets raised
         if rom_name:
@@ -641,7 +845,7 @@ class SMZ3World(World):
         itemPool.remove(item)
 
     def InitialFillInOwnWorld(self):
-        self.FillItemAtLocation(self.dungeon, TotalSMZ3Item.ItemType.KeySW, self.smz3World.GetLocation("Skull Woods - Pinball Room"))
+#       self.FillItemAtLocation(self.dungeon, TotalSMZ3Item.ItemType.KeySW, self.smz3World.GetLocation("Skull Woods - Pinball Room"))
         if (not self.smz3World.Config.Keysanity):
             self.FillItemAtLocation(self.dungeon, TotalSMZ3Item.ItemType.KeySP, self.smz3World.GetLocation("Swamp Palace - Entrance"))
 
@@ -662,8 +866,8 @@ class SMZ3World(World):
         # /* We place a PB and Super in Sphere 1 to make sure the filler
         #    * doesn't start locking items behind this when there are a
         #    * high chance of the trash fill actually making them available */
-        self.FrontFillItemInOwnWorld(self.progression, TotalSMZ3Item.ItemType.Super)
-        self.FrontFillItemInOwnWorld(self.progression, TotalSMZ3Item.ItemType.PowerBomb)
+#       self.FrontFillItemInOwnWorld(self.progression, TotalSMZ3Item.ItemType.Super)
+#       self.FrontFillItemInOwnWorld(self.progression, TotalSMZ3Item.ItemType.PowerBomb)
 
     def create_locations(self, player: int):
         for name, id in SMZ3World.location_name_to_id.items():

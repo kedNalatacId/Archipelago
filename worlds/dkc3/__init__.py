@@ -70,7 +70,10 @@ class DKC3World(World):
     web = DKC3Web()
     
     def __init__(self, world: MultiWorld, player: int):
-        self.rom_name_available_event = threading.Event()
+#       self.rom_name_available_event = threading.Event()
+        import Utils
+        self.rom_name = bytearray(f'D3{Utils.__version__.replace(".", "")[0:3]}_{player}_{world.seed:11}\0', 'utf8')[:21]
+        self.rom_name.extend([0] * (21 - len(self.rom_name)))
         super().__init__(world, player)
 
     @classmethod
@@ -166,7 +169,7 @@ class DKC3World(World):
 
             rompath = os.path.join(output_directory, f"{self.multiworld.get_out_file_name_base(self.player)}.sfc")
             rom.write_to_file(rompath)
-            self.rom_name = rom.name
+#           self.rom_name = rom.name
 
             patch = DKC3DeltaPatch(os.path.splitext(rompath)[0]+DKC3DeltaPatch.patch_file_ending, player=self.player,
                                    player_name=self.multiworld.player_name[self.player], patched_path=rompath)
@@ -174,14 +177,14 @@ class DKC3World(World):
         except:
             raise
         finally:
-            self.rom_name_available_event.set()  # make sure threading continues and errors are collected
+#           self.rom_name_available_event.set()  # make sure threading continues and errors are collected
             if os.path.exists(rompath):
                 os.unlink(rompath)
 
     def modify_multidata(self, multidata: dict):
         import base64
         # wait for self.rom_name to be available.
-        self.rom_name_available_event.wait()
+#       self.rom_name_available_event.wait()
         rom_name = getattr(self, "rom_name", None)
         # we skip in case of error, so that the original error in the output thread is the one that gets raised
         if rom_name:

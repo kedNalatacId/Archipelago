@@ -1,5 +1,6 @@
 import typing
-from Options import Choice, Option, Toggle, DefaultOnToggle, Range
+from Options import Choice, Option, Toggle, DefaultOnToggle, Range, FreeText, OptionDict
+from schema import And, Schema, Optional
 
 class SMLogic(Choice):
     """This option selects what kind of logic to use for item placement inside
@@ -17,8 +18,24 @@ class SMLogic(Choice):
     See https://samus.link/information for required moves."""
     display_name = "SMLogic"
     option_Normal = 0
+    option_Medium = 2
     option_Hard = 1
     default = 0
+
+class Z3Logic(Choice):
+    """This option selects what kind of logic to use for item placement inside
+    Link to the Past.
+
+    Common - no glitches at all
+    NMG    - No Major Glitches
+    OWG    - Overworld Glitches (includes NMG).
+
+    See https://samus.link/information for required moves."""
+    display_name = "Z3Logic"
+    option_Common = 0
+    option_NMG    = 1
+    option_OWG    = 2
+    default       = 0
 
 class SwordLocation(Choice):
     """This option decides where the first sword will be placed.
@@ -126,9 +143,59 @@ class EnergyBeep(DefaultOnToggle):
     """Toggles the low health energy beep in Super Metroid."""
     display_name = "Energy Beep"
 
+class LinksHouseName(FreeText):
+    """What to name Link's House in game. Can only be up to 4 characters."""
+    display_name = "Link's House Name"
+
+class SpriteSettings(OptionDict):
+    """Common options about sprite handling"""
+    display_name = "Common Sprite Settings"
+    valid_keys = ["sprite_cache_path","python_bin", "sprite_something_bin", "sprite_URL"]
+    default = {
+        "sprite_cache_path": "sprite_cache.json",
+        "python_bin": "/usr/bin/python",
+        "sprite_something_bin": "SpriteSomething/SpriteSomething.py",
+        "sprite_URL": "http://smalttpr.mymm1.com/sprites/"
+        }
+    value: typing.Dict[str, str]
+
+class LinkSprite(OptionDict):
+    """Options to select Link Sprite"""
+    display_name = "Link Sprite"
+    valid_keys = ["sprite", "avoid_sprites"]
+    default = {
+        "sprite": "",
+        "avoid_sprites": [ ],
+        }
+#   value: Dict[str, Union[str, List[str]]]
+#   schema = Schema({ str: str })
+
+class SamusSprite(OptionDict):
+    """Options to select Link Sprite"""
+    valid_keys = ["sprite","avoid_sprites"]
+    default = {
+        "sprite": "",
+        "avoid_sprites": [ ],
+        }
+    display_name = "Samus Sprite"
+
+class SMControls(OptionDict):
+    """Controller button scheme for controlling Samus"""
+    display_name: "Super Metroid Controls"
+    valid_keys = [ "shot", "dash", "jump", "item_select", "item_cancel", "angle_up", "angle_down" ]
+    default = {
+        "shot": "X",
+        "dash": "B",
+        "jump": "A",
+        "item_select": "Select",
+        "item_cancel": "Y",
+        "angle_up": "R",
+        "angle_down": "L",
+        }
 
 smz3_options: typing.Dict[str, type(Option)] = {
     "sm_logic": SMLogic,
+    "z3_logic": Z3Logic,
     "sword_location": SwordLocation,
     "morph_location": MorphLocation,
     "goal": Goal,
@@ -140,5 +207,10 @@ smz3_options: typing.Dict[str, type(Option)] = {
     "heart_beep_speed": HeartBeepSpeed,
     "heart_color": HeartColor, 
     "quick_swap": QuickSwap,
-    "energy_beep": EnergyBeep
+    "energy_beep": EnergyBeep,
+    "links_house_name": LinksHouseName,
+    "sprite_settings": SpriteSettings,
+    "link_sprite": LinkSprite,
+    "samus_sprite": SamusSprite,
+    "sm_controls": SMControls
     }

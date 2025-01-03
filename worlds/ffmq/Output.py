@@ -91,9 +91,8 @@ def generate_output(self, output_directory):
         options["Final Fantasy Mystic Quest"][option][data] = 1
 
     rom_name = f'MQ{__version__.replace(".", "")[0:3]}_{self.player}_{self.multiworld.seed_name:11}'[:21]
-    self.rom_name = bytearray(rom_name,
-                              'utf8')
-    self.rom_name_available_event.set()
+    self.rom_name = bytearray(rom_name, 'utf8')
+#   self.rom_name_available_event.set()
 
     setup = {"version": "1.5", "name": self.multiworld.player_name[self.player], "romname": rom_name, "seed":
              hex(self.multiworld.per_slot_randoms[self.player].randint(0, 0xFFFFFFFF)).split("0x")[1].upper()}

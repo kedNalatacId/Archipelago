@@ -61,8 +61,9 @@ class FFMQWorld(World):
     # settings: FFMQSettings
 
     def __init__(self, world, player: int):
-        self.rom_name_available_event = threading.Event()
-        self.rom_name = None
+        #self.rom_name_available_event = threading.Event()
+        rom_name = f'MQ{Utils.__version__.replace(".", "")[0:3]}_{player}_{world.seed_name:11}'[:21]
+        self.rom_name = bytearray(rom_name, 'utf8')
         self.rooms = None
         super().__init__(world, player)
 
@@ -157,7 +158,7 @@ class FFMQWorld(World):
 
     def modify_multidata(self, multidata):
         # wait for self.rom_name to be available.
-        self.rom_name_available_event.wait()
+        #self.rom_name_available_event.wait()
         rom_name = getattr(self, "rom_name", None)
         # we skip in case of error, so that the original error in the output thread is the one that gets raised
         if rom_name:

@@ -97,7 +97,10 @@ class TLoZWorld(World):
     def __init__(self, world: MultiWorld, player: int):
         super().__init__(world, player)
         self.generator_in_use = threading.Event()
-        self.rom_name_available_event = threading.Event()
+#       self.rom_name_available_event = threading.Event()
+        rom_name_text = f'LOZ{Utils.__version__.replace(".", "")[0:3]}_{player}_{world.seed:11}\0'
+        self.rom_name = bytearray(rom_name_text, 'utf8')[:0x20]
+        self.rom_name.extend([0] * (0x20 - len(self.rom_name)))
         self.levels = None
         self.filler_items = None
 
@@ -279,7 +282,7 @@ class TLoZWorld(World):
             self.rom_name_text = f'LOZ{Utils.__version__.replace(".", "")[0:3]}_{self.player}_{self.multiworld.seed:11}\0'
             self.romName = bytearray(self.rom_name_text, 'utf8')[:0x20]
             self.romName.extend([0] * (0x20 - len(self.romName)))
-            self.rom_name = self.romName
+#           self.rom_name = self.romName
             patched_rom[0x10:0x30] = self.romName
             self.playerName = bytearray(self.multiworld.player_name[self.player], 'utf8')[:0x20]
             self.playerName.extend([0] * (0x20 - len(self.playerName)))
@@ -294,11 +297,14 @@ class TLoZWorld(World):
             patch.write()
             os.unlink(patched_filename)
         finally:
-            self.rom_name_available_event.set()
+            # WIP
+            pass
+#           self.rom_name_available_event.set()
+            # END WIP
 
     def modify_multidata(self, multidata: dict):
         import base64
-        self.rom_name_available_event.wait()
+#       self.rom_name_available_event.wait()
         rom_name = getattr(self, "rom_name", None)
         if rom_name:
             new_name = base64.b64encode(bytes(self.rom_name)).decode()

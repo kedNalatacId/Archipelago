@@ -13,6 +13,7 @@ class Z3Logic(Enum):
 class SMLogic(Enum):
         Normal = 0
         Hard = 1
+        Medium = 2
 
 class SwordLocation(Enum):
         Randomized = 0

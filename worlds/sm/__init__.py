@@ -115,7 +115,10 @@ class SMWorld(World):
     Logic.factory('vanilla')
 
     def __init__(self, world: MultiWorld, player: int):
-        self.rom_name_available_event = threading.Event()
+#       self.rom_name_available_event = threading.Event()
+        import Utils
+        self.rom_name = bytearray(f'SM{Utils.__version__.replace(".", "")[0:3]}_{player}_{world.seed:11}\0', 'utf8')[:21]
+        self.rom_name.extend([0] * (21 - len(self.rom_name)))
         self.locations = {}
         super().__init__(world, player)
 
@@ -806,7 +809,7 @@ class SMWorld(World):
         try:
             self.variaRando.PatchRom(outputFilename, self.APPrePatchRom, self.APPostPatchRom)
             self.write_crc(outputFilename)
-            self.rom_name = self.romName
+#           self.rom_name = self.romName
         except:
             raise
         else:
@@ -816,7 +819,7 @@ class SMWorld(World):
         finally:
             if os.path.exists(outputFilename):
                 os.unlink(outputFilename)
-            self.rom_name_available_event.set()  # make sure threading continues and errors are collected
+#           self.rom_name_available_event.set()  # make sure threading continues and errors are collected
 
     def checksum_mirror_sum(self, start, length, mask = 0x800000):
         while not(length & mask) and mask:
@@ -849,7 +852,7 @@ class SMWorld(World):
 
     def modify_multidata(self, multidata: dict):
         # wait for self.rom_name to be available.
-        self.rom_name_available_event.wait()
+#       self.rom_name_available_event.wait()
         rom_name = getattr(self, "rom_name", None)
         # we skip in case of error, so that the original error in the output thread is the one that gets raised
         if rom_name:
